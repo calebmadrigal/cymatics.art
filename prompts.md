@@ -101,3 +101,13 @@ Use images/favicon.png as the new favicon, and create the right sizes and update
 Fix bug where, in mobile mode, the resonator display aspect ratio looks off (so that a square boundary looks rectangular).
 
 
+## Prompt 10 (executed with ChatGPT Sol 6.1 High)
+
+Add the video download functionality we discussed, with controls for resolution, FPS, and number of phase cycles. Use MP4 when supported and WebM as a fallback. Make sure to not add a second "Save" button - but add the video option to the existing save modal.
+
+
+## Prompt 11 (executed with ChatGPT Sol 6.1 High)
+
+There is a small problem with the video save functionality - the loop is not quite seamless. Make sure that logic to save a full phase is indeed doing a complete cycle with equal steps between.
+
+

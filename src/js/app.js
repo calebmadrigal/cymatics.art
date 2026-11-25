@@ -5,6 +5,7 @@ import { TAU, MAX_RESONATORS, default_config, config_with_patch, validate_config
     build_sources, rotated_resonators, inside_boundary, screen_to_world, phase_at_step, boundary_view_bounds, boundary_fully_visible, crop_view_config, linked_dimensions } from './cymatics.js';
 import { create_renderer } from './cymatics_glsl.js';
 import { add_png_config, read_png_config } from './png.js';
+import { supported_video_formats, video_plan, video_phase, even_video_dimensions, video_filename, record_video } from './video.js';
 
 const $ = id => document.getElementById(id);
 const offlineDocument = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -14,6 +15,7 @@ let renderer = null, scene = null, sceneKey = '', listKey = '', colorsKey = '';
 let editIndex = null, selectedIndex = 0, frameRequested = false, toastTimer;
 let sampledRange = { min: 0, max: 1 };
 let saveCropBounds = null;
+let videoController = null, saveBusy = false;
 
 function toast(message) {
     $('toast').textContent = message; $('toast').hidden = false;
@@ -333,7 +335,7 @@ const actions = {
         const available = boundary_fully_visible(cfg, canvas.width, canvas.height, saveCropBounds);
         $('cropBoundaryRow').hidden = !available; $('cropBoundary').checked = available;
         $('cropHint').textContent = available ? 'Crop removes the surrounding view and keeps the boundary aspect ratio.' : 'Crop is available when a closed boundary is fully visible.';
-        set_save_dimensions();
+        sync_save_mode(true);
         $('saveError').textContent = ''; open_dialog('saveModal');
     },
     open() { $('openFileInput').value = ''; $('openError').textContent = ''; open_dialog('openModal'); },
@@ -348,15 +350,87 @@ function set_save_dimensions() {
         $('saveWidth').value = Math.min(4096, Math.max(1, canvas.width)); $('saveHeight').value = Math.min(4096, Math.max(1, canvas.height));
     }
 }
-$('cropBoundary').addEventListener('change', set_save_dimensions);
+$('cropBoundary').addEventListener('change', () => { set_save_dimensions(); if ($('saveType').value === 'video') apply_video_resolution(); });
 for (const [id, dimension] of [['saveWidth', 'width'], ['saveHeight', 'height']]) {
     $(id).addEventListener('input', () => {
         const value = Number($(id).value);
-        if (!$('cropBoundary').checked || !saveCropBounds || !Number.isFinite(value) || value <= 0) return;
-        const size = linked_dimensions(value, saveCropBounds.width / saveCropBounds.height, dimension);
+        if ($('cropBoundary').checked && saveCropBounds && Number.isFinite(value) && value > 0) {
+            const size = linked_dimensions(value, saveCropBounds.width / saveCropBounds.height, dimension);
+            $('saveWidth').value = size.width; $('saveHeight').value = size.height;
+        }
+        if ($('saveType').value === 'video') $('videoResolution').value = 'custom';
+        update_video_summary();
+    });
+    $(id).addEventListener('change', () => {
+        if ($('saveType').value !== 'video') return;
+        const size = even_video_dimensions(Number($('saveWidth').value), Number($('saveHeight').value));
         $('saveWidth').value = size.width; $('saveHeight').value = size.height;
+        update_video_summary();
     });
 }
+
+function video_supported() {
+    return supported_video_formats().length > 0 && typeof HTMLCanvasElement.prototype.captureStream === 'function';
+}
+
+function selected_video_plan() {
+    return video_plan(config.get(), { width: Number($('saveWidth').value), height: Number($('saveHeight').value), fps: Number($('videoFps').value), cycles: Number($('videoCycles').value) });
+}
+
+function update_video_summary() {
+    if ($('saveType').value !== 'video') return;
+    if (!video_supported()) {
+        $('videoSummary').textContent = 'Video recording is unavailable in this browser. Image and JSON saving are still available.';
+        return;
+    }
+    try {
+        const plan = selected_video_plan(), format = supported_video_formats()[0];
+        $('videoSummary').textContent = `${format.label} · ${plan.width} × ${plan.height} · ${plan.duration.toFixed(2)} seconds · ${plan.totalFrames} target frames`;
+    } catch (error) { $('videoSummary').textContent = error.message; }
+}
+
+function apply_video_resolution() {
+    const selected = $('videoResolution').value;
+    if (selected !== 'custom') {
+        const aspect = $('cropBoundary').checked && saveCropBounds ? saveCropBounds.width / saveCropBounds.height : canvas.width / canvas.height;
+        const size = linked_dimensions(Number(selected), aspect, 'height');
+        const even = even_video_dimensions(size.width, size.height);
+        $('saveWidth').value = even.width; $('saveHeight').value = even.height;
+    } else {
+        const even = even_video_dimensions(Number($('saveWidth').value), Number($('saveHeight').value));
+        $('saveWidth').value = even.width; $('saveHeight').value = even.height;
+    }
+    update_video_summary();
+}
+
+function sync_save_mode(resetDimensions = false) {
+    const video = $('saveType').value === 'video', format = supported_video_formats()[0];
+    $('videoOptions').hidden = !video;
+    $('videoFps').disabled = !video || saveBusy; $('videoCycles').disabled = !video || saveBusy;
+    $('saveJsonButton').hidden = video;
+    $('saveDescription').textContent = video ? 'Save an animation of complete phase cycles using the current resonators, boundary, colors, and view.' : 'Save a PNG with the complete configuration embedded. Open the image later to restore this pattern.';
+    $('saveViewHint').textContent = video ? 'Video uses an independent export view. Cropped videos use Background Color outside the shape.' : 'Exports the current view at the selected size. Animation is captured at its current phase.';
+    $('saveImageButton').textContent = saveBusy ? (video ? 'Recording…' : 'Saving…') : video ? 'Save video' : 'Save image';
+    $('saveImageButton').disabled = saveBusy || (video && !video_supported());
+    $('saveFilename').value = video_filename($('saveFilename').value, video ? (format?.extension || 'webm') : 'png');
+    for (const id of ['saveWidth', 'saveHeight']) { $(id).min = video ? '2' : '1'; $(id).step = video ? '2' : '1'; }
+    if (resetDimensions) { set_save_dimensions(); if (video) apply_video_resolution(); }
+    update_video_summary();
+}
+
+function set_save_busy(busy, video) {
+    saveBusy = busy; $('saveForm').setAttribute('aria-busy', String(busy));
+    for (const id of ['saveType', 'videoResolution', 'videoFps', 'videoCycles', 'saveWidth', 'saveHeight', 'saveFilename', 'cropBoundary', 'saveJsonButton']) $(id).disabled = busy;
+    $('videoProgress').hidden = !busy || !video;
+    if (busy && video) { $('videoProgressBar').value = 0; $('videoProgressText').textContent = 'Starting video encoder…'; }
+    sync_save_mode(false);
+}
+
+$('saveType').addEventListener('change', () => { $('saveError').textContent = ''; sync_save_mode(true); });
+$('videoResolution').addEventListener('change', apply_video_resolution);
+for (const id of ['videoFps', 'videoCycles']) $(id).addEventListener('input', update_video_summary);
+$('cancelVideoButton').addEventListener('click', () => videoController?.abort());
+$('saveModal').addEventListener('close', () => videoController?.abort());
 
 document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', actions[button.dataset.action]));
 $('copyShareButton').addEventListener('click', async () => {
@@ -370,24 +444,51 @@ $('downloadAppButton').addEventListener('click', () => {
 });
 $('saveJsonButton').addEventListener('click', () => download_blob(new Blob([JSON.stringify(config.get(), null, 4)], { type: 'application/json' }), 'Cymatics.art.json'));
 $('saveForm').addEventListener('submit', async event => {
-    event.preventDefault(); $('saveImageButton').disabled = true; $('saveError').textContent = '';
+    event.preventDefault();
+    if (saveBusy) return;
+    const video = $('saveType').value === 'video';
+    $('saveError').textContent = '';
     let exportRenderer;
     try {
         const width = Number($('saveWidth').value), height = Number($('saveHeight').value);
+        const plan = video ? selected_video_plan() : null;
         if (![width, height].every(v => Number.isInteger(v) && v >= 1 && v <= 4096) || width * height > 12000000) throw new Error('Choose dimensions from 1 to 4096 px, up to 12 megapixels.');
+        set_save_busy(true, video);
         const saveCanvas = document.createElement('canvas'); saveCanvas.width = width; saveCanvas.height = height;
         const crop = $('cropBoundary').checked && saveCropBounds;
-        exportRenderer = create_renderer(saveCanvas, { transparentOutside: !!crop });
+        exportRenderer = create_renderer(saveCanvas, { transparentOutside: !video && !!crop });
         let cfg = structuredClone(config.get());
+        const exportScene = scene;
         if (crop) cfg = crop_view_config(cfg, saveCropBounds, width, height);
-        exportRenderer.draw(cfg, scene);
-        const png = await new Promise(resolve => saveCanvas.toBlob(resolve, 'image/png'));
-        if (!png) throw new Error('The browser could not export this image. Try a smaller size.');
-        const filename = $('saveFilename').value.trim() || 'Cymatics.art.png';
-        download_blob(await add_png_config(png, cfg), filename.toLowerCase().endsWith('.png') ? filename : filename + '.png');
-        $('saveModal').close(); toast('Saved image with embedded settings.');
-    } catch (error) { $('saveError').textContent = error.message; }
-    finally { exportRenderer?.dispose(); $('saveImageButton').disabled = false; }
+        if (video) {
+            videoController = new AbortController();
+            $('videoPreview').replaceChildren(saveCanvas);
+            const result = await record_video({
+                canvas: saveCanvas, plan, signal: videoController.signal,
+                drawFrame(frame) { exportRenderer.draw({ ...cfg, phase: video_phase(cfg, frame, plan.framesPerCycle) }, exportScene); exportRenderer.gl.flush(); },
+                onFormat(format) { $('saveFilename').value = video_filename($('saveFilename').value, format.extension); },
+                onProgress({ frame, total, elapsed }) {
+                    $('videoProgressBar').value = frame / total;
+                    $('videoProgressText').textContent = `Recording · ${Math.round(frame / total * 100)}% · ${elapsed.toFixed(1)} / ${plan.duration.toFixed(1)} seconds`;
+                }
+            });
+            download_blob(result.blob, video_filename($('saveFilename').value, result.format.extension));
+            videoController = null;
+            $('saveModal').close(); toast(`Saved ${result.format.label} video.`);
+        } else {
+            exportRenderer.draw(cfg, exportScene);
+            const png = await new Promise(resolve => saveCanvas.toBlob(resolve, 'image/png'));
+            if (!png) throw new Error('The browser could not export this image. Try a smaller size.');
+            const filename = $('saveFilename').value.trim() || 'Cymatics.art.png';
+            download_blob(await add_png_config(png, cfg), filename.toLowerCase().endsWith('.png') ? filename : filename + '.png');
+            $('saveModal').close(); toast('Saved image with embedded settings.');
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') toast('Video export cancelled.');
+        else $('saveError').textContent = error.message;
+    } finally {
+        videoController = null; exportRenderer?.dispose(); $('videoPreview').replaceChildren(); set_save_busy(false, video);
+    }
 });
 async function open_file(file) {
     if (!file) return;
