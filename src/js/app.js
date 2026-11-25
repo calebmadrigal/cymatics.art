@@ -283,8 +283,15 @@ $('gotoForm').addEventListener('submit', event => {
     try { update_config({ xCenter: Number($('gotoX').value), yCenter: Number($('gotoY').value), yHeight: Number($('gotoHeight').value) }); $('gotoModal').close(); }
     catch (error) { $('gotoError').textContent = error.message; }
 });
-$('hideControlPanelButton').addEventListener('click', () => { document.body.classList.add('sidebar-hidden'); request_render(); });
-$('openControlPanelButton').addEventListener('click', () => { document.body.classList.remove('sidebar-hidden'); request_render(); });
+function set_sidebar_open(open) {
+    document.body.classList.toggle('sidebar-hidden', !open);
+    $('hideControlPanelButton').setAttribute('aria-expanded', String(open));
+    $('openControlPanelButton').setAttribute('aria-expanded', String(open));
+    $(open ? 'hideControlPanelButton' : 'openControlPanelButton').focus({ preventScroll: true });
+    request_render();
+}
+$('hideControlPanelButton').addEventListener('click', () => set_sidebar_open(false));
+$('openControlPanelButton').addEventListener('click', () => set_sidebar_open(true));
 $('mobileMenuButton').addEventListener('click', () => { const open = $('navigation').classList.toggle('menu-open'); $('mobileMenuButton').setAttribute('aria-expanded', String(open)); });
 
 function download_blob(blob, filename) {

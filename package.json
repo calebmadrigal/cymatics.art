@@ -8,7 +8,8 @@
     "autoprefixer": "^10.4.21",
     "parcel": "^2.15.4",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.12"
+    "tailwindcss": "^4.1.12",
+    "wrangler": "^4.168.0"
   },
   "targets": {
     "browser": {
@@ -23,11 +24,13 @@
   "name": "cymatics-art",
   "version": "1.0.0",
   "private": true,
-  "description": "Digital cymatics with reflecting boundaries \u2014 a single-file web app",
+  "description": "Digital cymatics with reflecting boundaries — a single-file web app",
   "scripts": {
     "build": "parcel build src/index.html --no-source-maps --dist-dir dist",
     "dev": "parcel src/index.html --port 1234",
     "test": "node --test tests/*.test.mjs",
-    "serve": "python3 -m http.server 8000 --directory dist"
+    "serve": "python3 -m http.server 8000 --directory dist",
+    "deploy": "wrangler deploy",
+    "deploy:check": "wrangler deploy --dry-run"
   }
 }

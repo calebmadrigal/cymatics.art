@@ -29,6 +29,7 @@
         #controlPanel { position: fixed; left: 0; top: 64px; bottom: 0; width: 272px; z-index: 10; background: #d1d5db; display: flex; flex-direction: column; }
         .panel-top { background: #9ca3af; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 8px; min-height: 46px; }
         .panel-top > button { padding: 2px 7px; background: transparent; color: white; border: 0; font-size: 22px; }
+        .sidebar-chevron { display: block; width: 20px; height: 20px; }
         .mode { display: flex; align-items: center; gap: 12px; margin-right: 8px; font-size: 14px; }
         .switch { width: 48px; height: 24px; background: #d1d5db; border: 1px solid #6b728080; border-radius: 0; padding: 3px; flex-shrink: 0; }
         .switch span { display: block; width: 16px; height: 16px; background: #f9fafb; box-shadow: 0 1px 3px #0003; transition: transform .15s; }
@@ -114,12 +115,17 @@
             nav.menu-open { display: flex; flex-direction: column; gap: 0; }
             nav button { justify-content: space-between; }
             #mobileMenuButton { display: block; font-size: 24px; }
-            #controlPanel { width: 100%; top: auto; bottom: 0; height: 40dvh; }
+            #controlPanel { width: 100%; top: auto; bottom: 0; height: 40dvh; visibility: visible; transform: translateY(0); transition: transform .2s ease, visibility 0s; }
+            body.sidebar-hidden #controlPanel { display: flex; transform: translateY(100%); visibility: hidden; pointer-events: none; transition: transform .2s ease, visibility 0s .2s; }
+            #hideControlPanelButton .sidebar-chevron, #openControlPanelButton .sidebar-chevron { transform: rotate(-90deg); }
+            #openControlPanelButton { position: fixed; left: 50%; top: auto; bottom: 0; width: 52px; height: calc(32px + env(safe-area-inset-bottom, 0px)); padding: 0 0 env(safe-area-inset-bottom, 0px); transform: translateX(-50%); border-radius: 6px 6px 0 0; z-index: 11; }
             .panel-top { min-height: 42px; }
             .sidebar-content { display: block; }
             #resonatorCanvas { max-height: 180px; }
             main { left: 0; bottom: 40dvh; }
             body.sidebar-hidden main { bottom: 0; }
+            body.sidebar-hidden #renderStatus { bottom: calc(44px + env(safe-area-inset-bottom, 0px)); }
+            body.sidebar-hidden #toast { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
             #errorBanner { max-width: calc(100% - 72px); left: 10px; transform: none; }
             .row { gap: 12px; }
         }
@@ -150,7 +156,7 @@
         <button id="mobileMenuButton" aria-label="Toggle menu" aria-expanded="false">☰</button>
     </header>
     <aside id="controlPanel" aria-label="Cymatics controls">
-        <div class="panel-top"><button id="hideControlPanelButton" title="Hide controls" aria-label="Hide controls">‹</button>
+        <div class="panel-top"><button id="hideControlPanelButton" title="Hide controls" aria-label="Hide controls" aria-controls="controlPanel" aria-expanded="true"><svg class="sidebar-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             <div class="mode"><span id="modeLabel">Basic</span><button id="modeToggle" class="switch" role="switch" aria-checked="false" aria-label="Advanced mode"><span></span></button></div>
         </div>
         <div class="sidebar-content">
@@ -203,7 +209,7 @@
             <button id="homeButton" aria-label="Reset view" title="Reset view"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></svg></button>
             <button id="gotoButton" aria-label="Go to coordinates" title="Go to coordinates"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke-width="2"/><circle cx="12" cy="12" r="3"/><path d="M12 1v5m0 12v5M1 12h5m12 0h5" stroke-width="2"/></svg></button>
         </div>
-        <button id="openControlPanelButton" aria-label="Show controls" title="Show controls">›</button>
+        <button id="openControlPanelButton" aria-label="Show controls" title="Show controls" aria-controls="controlPanel" aria-expanded="true"><svg class="sidebar-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <output id="coordinates" hidden></output><output id="renderStatus"></output><div id="errorBanner" role="alert" hidden></div>
     </main>
     <div id="toast" role="status" hidden></div>

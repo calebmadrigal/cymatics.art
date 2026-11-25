@@ -21,6 +21,34 @@ Open http://localhost:8000 after `npm run serve`. `./build_and_serve.sh` builds 
 
 `dist/index.html` is the complete, self-contained app: all JavaScript, GLSL, styles, and color-map data are embedded. Open it directly in a WebGL 2 browser, or copy it anywhere and use it offline. `do_build.sh` also creates `dist/Cymatics.art.html`. The in-app Download button includes the current configuration in its offline copy.
 
+## Deploy to Cloudflare
+
+The repository supports the **Workers → Create application → Connect a repository** flow using Workers Static Assets. `wrangler.jsonc` points Cloudflare at the Parcel output in `dist`; no server-side Worker script is needed.
+
+Push the configuration and package changes to the repository, then use these Cloudflare Workers build settings:
+
+| Setting | Value |
+| --- | --- |
+| Worker name | `cymatics-art` (matches `wrangler.jsonc`) |
+| Root directory | Repository root |
+| Build command | `npm run build` |
+| Deploy command | `npm run deploy` |
+| Node.js | 22 or newer |
+
+For local validation without publishing:
+
+```sh
+npm ci
+npm run build
+npm run deploy:check
+```
+
+For a manual deployment after building, use `npm run deploy` and authenticate with Cloudflare when prompted. Configure the `cymatics.art` custom domain in Cloudflare after deployment.
+
+Cloudflare **Pages** is a separate setup flow. For Pages Git integration, select framework preset **None**, build command `npm run build`, and build output directory `dist`. The Workers configuration in this repository is intended for the Workers setup screen.
+
+Official references: [Workers Static Assets configuration](https://developers.cloudflare.com/workers/static-assets/binding/) and [Pages Git integration](https://developers.cloudflare.com/pages/get-started/git-integration/).
+
 ## Controls
 
 - **Resonators:** Basic mode distributes up to 32 sources uniformly around the origin. One source sits at the origin. Advanced mode provides Add, Edit, and Remove, including per-source position, waveform, and phase settings. Switching modes preserves the list; changing a Basic resonator control regenerates it. Resonator Rotation rotates the layout around the origin in both modes while retaining the original source X/Y values.

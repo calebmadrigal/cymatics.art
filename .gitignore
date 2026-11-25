@@ -200,3 +200,6 @@ prototypes
 
 # Parcel build cache
 .parcel-cache/
+
+# Cloudflare local runtime state
+.wrangler/

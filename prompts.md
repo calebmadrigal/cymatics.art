@@ -85,4 +85,8 @@ Make the following changes: Add some left padding to the "Cymatics.art" title, a
 
 Remove the "Full phase cycle maximum" logic and instead set the default max override to 1. But when settings that might affect the max override change, remove the max override. Keep the min override set to 0 by default and don't turn it off.
 
+## Prompt 7
+
+In mobile mode, make it where the sidebar goes down instead of to the left, and make the hide sidebar be a downward pointing arrow when it is visible, and an up arrow when hidden (like fuzzygraph).
+
 
