@@ -1,8 +1,8 @@
 // UI state follows FuzzyGraph's nanostores + DOM event/listener style.
 import { map } from 'nanostores';
 import { matplotlibColorData, getMatplotlibColormap } from './ga_color.js';
-import { TAU, MAX_RESONATORS, default_config, validate_config, validate_resonator, generate_resonators,
-    build_sources, rotated_resonators, inside_boundary, screen_to_world, phase_at_step } from './cymatics.js';
+import { TAU, MAX_RESONATORS, default_config, config_with_patch, validate_config, validate_resonator, generate_resonators,
+    build_sources, rotated_resonators, inside_boundary, screen_to_world, phase_at_step, boundary_view_bounds, boundary_fully_visible, crop_view_config, linked_dimensions } from './cymatics.js';
 import { create_renderer } from './cymatics_glsl.js';
 import { add_png_config, read_png_config } from './png.js';
 
@@ -13,6 +13,7 @@ const canvas = $('mainCanvas');
 let renderer = null, scene = null, sceneKey = '', listKey = '', colorsKey = '';
 let editIndex = null, selectedIndex = 0, frameRequested = false, toastTimer;
 let sampledRange = { min: 0, max: 1 };
+let saveCropBounds = null;
 
 function toast(message) {
     $('toast').textContent = message; $('toast').hidden = false;
@@ -25,7 +26,7 @@ function apply_config(candidate) {
     config.set(validated);
 }
 
-function update_config(patch) { apply_config({ ...config.get(), ...patch }); }
+function update_config(patch, options) { apply_config(config_with_patch(config.get(), patch, options)); }
 function set_switch(id, value) { $(id).setAttribute('aria-checked', String(value)); }
 
 for (const name of Object.keys(matplotlibColorData).sort((a, b) => a.localeCompare(b))) {
@@ -36,7 +37,7 @@ for (const name of Object.keys(matplotlibColorData).sort((a, b) => a.localeCompa
 function update_position_preview(cfg) {
     const preview = $('resonatorCanvas'), ctx = preview.getContext('2d');
     const { width: w, height: h } = preview;
-    const extent = Math.max(cfg.boundary === 'None' ? 0 : cfg.radius, ...cfg.resonators_list.map(r => Math.hypot(r.x, r.y)), 1) * 1.2;
+    const extent = Math.max(cfg.boundary === 'Rectangle' ? Math.hypot(cfg.boundaryWidth, cfg.boundaryHeight) / 2 : cfg.boundary === 'None' ? 0 : cfg.radius, ...cfg.resonators_list.map(r => Math.hypot(r.x, r.y)), 1) * 1.2;
     const scale = Math.min(w, h) / (2 * extent);
     const xy = p => [w / 2 + p.x * scale, h / 2 - p.y * scale];
     ctx.clearRect(0, 0, w, h);
@@ -92,6 +93,8 @@ function sync_ui(cfg) {
     $('basicResonators').hidden = cfg.advanced; $('basicWaveform').hidden = cfg.advanced;
     $('advancedResonators').hidden = !cfg.advanced;
     $('customSides').hidden = cfg.boundary !== 'Custom';
+    $('rectangleDimensions').hidden = cfg.boundary !== 'Rectangle';
+    $('radiusField').hidden = cfg.boundary === 'Rectangle';
     $('radius').disabled = cfg.boundary === 'None';
     $('boundaryRotationDegrees').disabled = cfg.boundary === 'None';
     const playing = cfg.phaseMode === 'animated';
@@ -102,9 +105,10 @@ function sync_ui(cfg) {
     $('fixedPhase').hidden = cfg.phaseMode !== 'fixed'; $('animatedPhase').hidden = cfg.phaseMode !== 'animated';
     document.querySelectorAll('[name=phaseMode]').forEach(radio => { radio.checked = radio.value === cfg.phaseMode; });
     $('currentPhase').textContent = `Phase: ${cfg.phase.toFixed(3)} rad`;
-    $('boundaryHint').textContent = cfg.boundary === 'None' ? 'Unbounded waves · no reflections.' : cfg.boundary === 'Binary Split' ? 'Parallel walls · rotate around the origin.' : cfg.boundary === 'Circle' ? 'Circular wall · 64-segment reflection model.' : 'Radius is measured from center to vertices.';
+    $('boundaryHint').textContent = cfg.boundary === 'None' ? 'Unbounded waves · no reflections.' : cfg.boundary === 'Binary Split' ? 'Parallel walls · rotate around the origin.' : cfg.boundary === 'Circle' ? 'Circular wall · 64-segment reflection model.' : cfg.boundary === 'Rectangle' ? 'Width and height are measured before boundary rotation.' : 'Radius is measured from center to vertices.';
     for (const key of ['minOverride', 'maxOverride']) {
-        $(key).disabled = cfg[key] === null; set_switch(key + 'Toggle', cfg[key] !== null);
+        const enabled = cfg[key] !== null;
+        $(key).disabled = !enabled; set_switch(key + 'Toggle', enabled);
         if (document.activeElement !== $(key)) $(key).value = cfg[key] ?? '';
     }
     const nextListKey = JSON.stringify(cfg.resonators_list);
@@ -121,7 +125,7 @@ function sync_ui(cfg) {
     }
     $('addResonatorButton').disabled = cfg.resonators_list.length >= MAX_RESONATORS;
     $('removeResonatorButton').disabled = cfg.resonators_list.length <= 1;
-    const nextSceneKey = JSON.stringify([cfg.resonators_list, cfg.resonatorRotationDegrees, cfg.boundary, cfg.radius, cfg.sides, cfg.boundaryRotationDegrees]);
+    const nextSceneKey = JSON.stringify([cfg.resonators_list, cfg.resonatorRotationDegrees, cfg.boundary, cfg.radius, cfg.sides, cfg.boundaryRotationDegrees, cfg.boundaryWidth, cfg.boundaryHeight]);
     if (sceneKey !== nextSceneKey) { sceneKey = nextSceneKey; scene = build_sources(cfg); }
     update_position_preview(cfg); update_color_preview(cfg);
     request_render();
@@ -171,7 +175,8 @@ $('modeToggle').addEventListener('click', () => update_config({ advanced: !confi
 document.querySelectorAll('[name=phaseMode]').forEach(r => r.addEventListener('change', () => update_config({ phaseMode: r.value })));
 for (const key of ['minOverride', 'maxOverride']) {
     $(key + 'Toggle').addEventListener('click', () => {
-        const value = config.get()[key] === null ? sampledRange[key === 'minOverride' ? 'min' : 'max'] : null;
+        const enabled = config.get()[key] !== null;
+        const value = enabled ? null : sampledRange[key === 'minOverride' ? 'min' : 'max'];
         try { update_config({ [key]: value }); } catch (error) { toast(error.message); }
     });
     $(key).addEventListener('change', () => {
@@ -232,8 +237,9 @@ $('zoomInButton').addEventListener('click', () => zoom(1 / 1.5));
 $('zoomOutButton').addEventListener('click', () => zoom(1.5));
 $('homeButton').addEventListener('click', () => {
     const cfg = config.get(), bounds = canvas.getBoundingClientRect();
+    const geometryBounds = boundary_view_bounds({ ...cfg, rotationDegrees: 0 });
     const radius = cfg.boundary === 'None' ? Math.max(2, ...cfg.resonators_list.map(r => Math.hypot(r.x, r.y))) : cfg.radius;
-    const yHeight = Math.max(.0001, Math.min(100000, 2.5 * radius * Math.max(1, bounds.height / bounds.width)));
+    const yHeight = Math.max(.0001, Math.min(100000, geometryBounds ? 1.25 * Math.max(geometryBounds.height, geometryBounds.width * bounds.height / bounds.width) : 2.5 * radius * Math.max(1, bounds.height / bounds.width)));
     update_config({ xCenter: 0, yCenter: 0, yHeight, rotationDegrees: 0 });
 });
 canvas.addEventListener('wheel', event => {
@@ -287,17 +293,41 @@ function download_blob(blob, filename) {
     setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 function share_url() {
-    const url = new URL('https://cymatics.app/'); url.searchParams.set('config', JSON.stringify(config.get())); return url.href;
+    const url = new URL('https://cymatics.art/'); url.searchParams.set('config', JSON.stringify(config.get())); return url.href;
 }
 const actions = {
     share() { $('shareURL').value = share_url(); open_dialog('shareModal'); },
     save() {
-        $('saveWidth').value = Math.min(4096, Math.max(64, canvas.width)); $('saveHeight').value = Math.min(4096, Math.max(64, canvas.height));
+        const cfg = config.get();
+        saveCropBounds = boundary_view_bounds(cfg, scene.geometry);
+        const available = boundary_fully_visible(cfg, canvas.width, canvas.height, saveCropBounds);
+        $('cropBoundaryRow').hidden = !available; $('cropBoundary').checked = available;
+        $('cropHint').textContent = available ? 'Crop removes the surrounding view and keeps the boundary aspect ratio.' : 'Crop is available when a closed boundary is fully visible.';
+        set_save_dimensions();
         $('saveError').textContent = ''; open_dialog('saveModal');
     },
     open() { $('openFileInput').value = ''; $('openError').textContent = ''; open_dialog('openModal'); },
     help() { open_dialog('helpModal'); }
 };
+function set_save_dimensions() {
+    if ($('cropBoundary').checked && saveCropBounds) {
+        const pixels = canvas.height / config.get().yHeight;
+        const size = linked_dimensions(Math.max(1, Math.round(saveCropBounds.width * pixels)), saveCropBounds.width / saveCropBounds.height);
+        $('saveWidth').value = size.width; $('saveHeight').value = size.height;
+    } else {
+        $('saveWidth').value = Math.min(4096, Math.max(1, canvas.width)); $('saveHeight').value = Math.min(4096, Math.max(1, canvas.height));
+    }
+}
+$('cropBoundary').addEventListener('change', set_save_dimensions);
+for (const [id, dimension] of [['saveWidth', 'width'], ['saveHeight', 'height']]) {
+    $(id).addEventListener('input', () => {
+        const value = Number($(id).value);
+        if (!$('cropBoundary').checked || !saveCropBounds || !Number.isFinite(value) || value <= 0) return;
+        const size = linked_dimensions(value, saveCropBounds.width / saveCropBounds.height, dimension);
+        $('saveWidth').value = size.width; $('saveHeight').value = size.height;
+    });
+}
+
 document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', actions[button.dataset.action]));
 $('copyShareButton').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText($('shareURL').value); toast('Link copied.'); }
@@ -314,10 +344,12 @@ $('saveForm').addEventListener('submit', async event => {
     let exportRenderer;
     try {
         const width = Number($('saveWidth').value), height = Number($('saveHeight').value);
-        if (![width, height].every(v => Number.isInteger(v) && v >= 64 && v <= 4096) || width * height > 12000000) throw new Error('Choose dimensions from 64 to 4096 px, up to 12 megapixels.');
+        if (![width, height].every(v => Number.isInteger(v) && v >= 1 && v <= 4096) || width * height > 12000000) throw new Error('Choose dimensions from 1 to 4096 px, up to 12 megapixels.');
         const saveCanvas = document.createElement('canvas'); saveCanvas.width = width; saveCanvas.height = height;
-        exportRenderer = create_renderer(saveCanvas);
-        const cfg = structuredClone(config.get());
+        const crop = $('cropBoundary').checked && saveCropBounds;
+        exportRenderer = create_renderer(saveCanvas, { transparentOutside: !!crop });
+        let cfg = structuredClone(config.get());
+        if (crop) cfg = crop_view_config(cfg, saveCropBounds, width, height);
         exportRenderer.draw(cfg, scene);
         const png = await new Promise(resolve => saveCanvas.toBlob(resolve, 'image/png'));
         if (!png) throw new Error('The browser could not export this image. Try a smaller size.');
@@ -351,7 +383,7 @@ function animate(time) {
         if (count > 0) {
             elapsed -= count * 1000 / cfg.speed;
             const step = Math.round(cfg.phase / TAU * cfg.steps);
-            update_config({ phase: phase_at_step(step + count, cfg.steps) });
+            update_config({ phase: phase_at_step(step + count, cfg.steps) }, { animation: true });
         }
     } else elapsed = 0;
     previousTime = time; requestAnimationFrame(animate);
@@ -366,5 +398,11 @@ try {
     if (candidate) apply_config(candidate);
 } catch (error) { toast(`Could not restore settings: ${error.message}`); }
 config.subscribe(sync_ui);
-new ResizeObserver(request_render).observe($('mainView'));
+let previousViewSize = null;
+new ResizeObserver(([entry]) => {
+    const size = `${entry.contentRect.width}:${entry.contentRect.height}`;
+    if (previousViewSize !== null && size !== previousViewSize) update_config({ maxOverride: null });
+    previousViewSize = size;
+    request_render();
+}).observe($('mainView'));
 requestAnimationFrame(animate);

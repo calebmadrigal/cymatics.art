@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TAU, default_config, generate_resonators, validate_config, validate_resonator, boundary_geometry, build_sources,
-    reflect_point, visible_source, inside_boundary, wave_value, evaluate_field, phase_at_step, screen_to_world, rotate_point } from '../src/js/cymatics.js';
+    reflect_point, visible_source, inside_boundary, wave_value, evaluate_field, phase_at_step, screen_to_world, rotate_point, boundary_view_bounds, boundary_fully_visible, crop_view_config, linked_dimensions, config_with_patch } from '../src/js/cymatics.js';
 import { add_png_config, read_png_config } from '../src/js/png.js';
 const near = (a, b, tolerance = 1e-8) => assert.ok(Math.abs(a - b) < tolerance, `${a} ≠ ${b}`);
 
@@ -10,7 +10,7 @@ test('Basic resonators use the required JSON schema and a uniform arrangement', 
     assert.deepEqual(Object.keys(cfg.resonators_list[0]), ['x', 'y', 'amplitude', 'frequency', 'phase_multiplier', 'phase_offset', 'waveform']);
     assert.equal(cfg.phase_multiplier, -1);
     for (const r of cfg.resonators_list) near(Math.hypot(r.x, r.y), cfg.distance);
-    assert.deepEqual(generate_resonators({ ...cfg, numResonators: 1 })[0], { x: 0, y: 0, amplitude: 1, frequency: 3, phase_multiplier: -1, phase_offset: 0, waveform: 'sinc' });
+    assert.deepEqual(generate_resonators({ ...cfg, numResonators: 1 })[0], { x: 0, y: 0, amplitude: 1, frequency: 2, phase_multiplier: -1, phase_offset: 0, waveform: 'sinc' });
 });
 
 test('all waveform values, signed phases and per-source phase parameters', () => {
@@ -55,7 +55,7 @@ test('invalid finite-wall paths are rejected; two-bounce paths are ordered', () 
 
 test('all boundaries clip the field and custom sides are respected', () => {
     const cfg = { ...default_config(), boundaryRotationDegrees: 0 };
-    for (const boundary of ['Circle', 'Triangle', 'Square', 'Pentagon', 'Hexagon', 'Septagon', 'Octagon', '9-sides', '10-sides', '11-sides', '12-sides', 'Custom', 'Binary Split']) {
+    for (const boundary of ['Circle', 'Triangle', 'Square', 'Rectangle', 'Pentagon', 'Hexagon', 'Septagon', 'Octagon', '9-sides', '10-sides', '11-sides', '12-sides', 'Custom', 'Binary Split']) {
         const g = boundary_geometry({ ...cfg, boundary, sides: 17 });
         assert.ok(inside_boundary({ x: 0, y: 0 }, g, cfg.radius));
         assert.equal(inside_boundary({ x: 100, y: 0 }, g, cfg.radius), false);
@@ -152,4 +152,65 @@ test('new color and rotation settings validate and legacy settings retain their 
     delete legacy.resonatorRotationDegrees; delete legacy.boundaryRotationDegrees; delete legacy.backgroundColor;
     const restored = validate_config(legacy);
     assert.equal(restored.phaseMode, 'fixed'); assert.equal(restored.resonatorRotationDegrees, 0); assert.equal(restored.boundaryRotationDegrees, 0); assert.equal(restored.backgroundColor, '#0e1116');
+});
+
+
+test('rectangle uses independent dimensions and rotates walls and mirror sources', () => {
+    const cfg = { ...default_config(), boundary: 'Rectangle', boundaryWidth: 8, boundaryHeight: 2, boundaryRotationDegrees: 0 };
+    const geometry = boundary_geometry(cfg);
+    assert.ok(inside_boundary({ x: 3.9, y: .9 }, geometry, cfg.radius));
+    assert.equal(inside_boundary({ x: 0, y: 1.1 }, geometry, cfg.radius), false);
+    const rotated = boundary_geometry({ ...cfg, boundaryRotationDegrees: 90 });
+    assert.ok(inside_boundary({ x: .9, y: 3.9 }, rotated, cfg.radius));
+    assert.equal(inside_boundary({ x: 1.1, y: 0 }, rotated, cfg.radius), false);
+    assert.equal(build_sources(cfg).sources.length, cfg.resonators_list.length * 17);
+    for (const patch of [{ boundaryWidth: 0 }, { boundaryHeight: Infinity }]) assert.throws(() => validate_config({ ...cfg, ...patch }));
+});
+
+test('crop bounds and visibility account for camera rotation and pan', () => {
+    const cfg = { ...default_config(), boundary: 'Rectangle', boundaryWidth: 8, boundaryHeight: 2, boundaryRotationDegrees: 0, rotationDegrees: 0, yHeight: 6 };
+    const bounds = boundary_view_bounds(cfg);
+    near(bounds.width, 8); near(bounds.height, 2);
+    assert.ok(boundary_fully_visible(cfg, 900, 600));
+    assert.equal(boundary_fully_visible({ ...cfg, xCenter: 2 }, 900, 600), false);
+    assert.equal(boundary_fully_visible({ ...cfg, yHeight: 1 }, 900, 600), false);
+    const turned = boundary_view_bounds({ ...cfg, rotationDegrees: 90 });
+    near(turned.width, 2); near(turned.height, 8);
+    const cropped = crop_view_config(cfg, bounds, 800, 200);
+    near(cropped.yHeight, 2); near(cropped.xCenter, 0); near(cropped.yCenter, 0);
+    assert.equal(boundary_view_bounds({ ...cfg, boundary: 'Binary Split' }), null);
+    assert.equal(boundary_fully_visible({ ...cfg, boundary: 'None' }, 900, 600), false);
+});
+
+test('linked crop dimensions preserve aspect from either input', () => {
+    assert.deepEqual(linked_dimensions(800, 4, 'width'), { width: 800, height: 200 });
+    assert.deepEqual(linked_dimensions(300, 4, 'height'), { width: 1200, height: 300 });
+    const large = linked_dimensions(8000, 4);
+    assert.equal(large.width, 4096); assert.equal(large.height, 1024);
+});
+
+
+test('max override defaults to 1 and wave, geometry and view edits clear only the maximum', () => {
+    const cfg = default_config();
+    assert.equal(cfg.maxOverride, 1); assert.equal(cfg.minOverride, 0);
+    for (const patch of [{ amplitude: 2 }, { frequency: 3 }, { boundary: 'Circle' }, { boundaryWidth: 9 },
+        { boundaryRotationDegrees: 12 }, { resonatorRotationDegrees: 15 }, { combineOperator: '*' },
+        { xCenter: 1 }, { yHeight: 12 }, { steps: 60 }, { phase: 1 },
+        { resonators_list: cfg.resonators_list.map((r, i) => i ? r : { ...r, phase_offset: .5 }) }]) {
+        const next = config_with_patch(cfg, patch);
+        assert.equal(next.maxOverride, null, JSON.stringify(patch));
+        assert.equal(next.minOverride, 0);
+        validate_config(next);
+    }
+});
+
+test('animation, playback, colors, and unchanged fields preserve the selected maximum', () => {
+    const cfg = { ...default_config(), maxOverride: 8 };
+    for (const patch of [{ phaseMode: 'fixed' }, { speed: 60 }, { colorMap: 'viridis' }, { backgroundColor: '#123456' },
+        { fuzzyLevel: 20 }, { amplitude: cfg.amplitude }, { resonators_list: structuredClone(cfg.resonators_list) }]) {
+        assert.equal(config_with_patch(cfg, patch).maxOverride, 8);
+    }
+    assert.equal(config_with_patch(cfg, { phase: 1 }, { animation: true }).maxOverride, 8);
+    assert.equal(config_with_patch(cfg, { amplitude: 2, maxOverride: 4 }).maxOverride, 4);
+    assert.equal(config_with_patch(cfg, { amplitude: 2 }).minOverride, 0);
 });

@@ -4,7 +4,7 @@ export const TAU = 2 * Math.PI;
 export const MAX_RESONATORS = 32;
 export const MAX_SIDES = 128;
 export const WAVEFORMS = ['sinc', 'sine', 'square', 'sawtooth', 'triangle'];
-export const BOUNDARIES = ['None', 'Circle', 'Binary Split', 'Triangle', 'Square', 'Pentagon', 'Hexagon', 'Septagon', 'Octagon', '9-sides', '10-sides', '11-sides', '12-sides', 'Custom'];
+export const BOUNDARIES = ['None', 'Circle', 'Binary Split', 'Triangle', 'Square', 'Rectangle', 'Pentagon', 'Hexagon', 'Septagon', 'Octagon', '9-sides', '10-sides', '11-sides', '12-sides', 'Custom'];
 
 export function uniformly_distributed_points(numPoints, distance, rotateRadians = 0) {
     if (numPoints === 1) return [{ x: 0, y: 0 }];
@@ -24,19 +24,34 @@ export function generate_resonators(cfg) {
 export function default_config() {
     const cfg = {
         app: 'Cymatics.art', version: 1, advanced: false,
-        numResonators: 6, distance: 2, amplitude: 1, frequency: 3,
+        numResonators: 2, distance: 1.5, amplitude: 1, frequency: 2,
         phase_multiplier: -1, waveform: 'sinc', combineOperator: '+',
         resonatorRotationDegrees: 90, boundaryRotationDegrees: 90,
-        boundary: 'Binary Split', radius: 4, sides: 7,
+        boundary: 'Binary Split', radius: 5, sides: 7, boundaryWidth: 8, boundaryHeight: 6,
         phaseMode: 'animated', phase: 0, steps: 30, speed: 30,
-        fuzzyLevel: 12, minOverride: null, maxOverride: null, rotationDegrees: 0,
+        fuzzyLevel: 12, minOverride: 0, maxOverride: 1, rotationDegrees: 0,
         backgroundColor: '#0e1116',
-        colorMap: 'inferno', reverseColor: true, invertColor: false,
+        colorMap: 'gnuplot2', reverseColor: true, invertColor: false,
         colorStart: 0, colorCycles: 1, hueShiftDegrees: 0, saturationPercent: 0, luminosityPercent: 0,
         xCenter: 0, yCenter: 0, yHeight: 7.5
     };
     cfg.resonators_list = generate_resonators(cfg);
     return cfg;
+}
+
+// User edits that can change the raw field range invalidate a saved maximum.
+// Animation advances phase without invalidating the user's chosen color scale.
+export function config_with_patch(cfg, patch, { animation = false } = {}) {
+    const rangeKeys = ['numResonators', 'distance', 'amplitude', 'frequency', 'phase_multiplier', 'waveform',
+        'resonators_list', 'resonatorRotationDegrees', 'combineOperator', 'boundary', 'radius', 'sides',
+        'boundaryRotationDegrees', 'boundaryWidth', 'boundaryHeight', 'steps',
+        'xCenter', 'yCenter', 'yHeight', 'rotationDegrees'];
+    if (!animation) rangeKeys.push('phase');
+    const next = { ...cfg, ...patch };
+    if (!Object.hasOwn(patch, 'maxOverride') && rangeKeys.some(key => Object.hasOwn(patch, key) && JSON.stringify(patch[key]) !== JSON.stringify(cfg[key]))) {
+        next.maxOverride = null;
+    }
+    return next;
 }
 
 function number(value, name, min = -1e6, max = 1e6, integer = false) {
@@ -78,6 +93,8 @@ export function validate_config(input) {
     number(cfg.frequency, 'Frequency', 0, 10000);
     number(cfg.phase_multiplier, 'Phase multiplier', -1000, 1000);
     number(cfg.radius, 'Radius', 0.001, 10000);
+    number(cfg.boundaryWidth, 'Rectangle width', 0.001, 10000);
+    number(cfg.boundaryHeight, 'Rectangle height', 0.001, 10000);
     number(cfg.sides, 'Sides', 3, MAX_SIDES, true);
     number(cfg.phase, 'Phase', 0, TAU);
     number(cfg.steps, 'Steps', 1, 10000, true);
@@ -123,6 +140,11 @@ export function boundary_geometry(cfg) {
             [{ x: -cfg.radius, y: -cfg.radius }, { x: -cfg.radius, y: cfg.radius }],
             [{ x: cfg.radius, y: cfg.radius }, { x: cfg.radius, y: -cfg.radius }]
         ].map(edge => edge.map(p => rotate_point(p, cfg.boundaryRotationDegrees ?? 0))) };
+    }
+    if (cfg.boundary === 'Rectangle') {
+        const w = cfg.boundaryWidth / 2, h = cfg.boundaryHeight / 2;
+        const vertices = [{ x: -w, y: -h }, { x: w, y: -h }, { x: w, y: h }, { x: -w, y: h }].map(p => rotate_point(p, cfg.boundaryRotationDegrees));
+        return { kind: 1, vertices, edges: vertices.map((p, i) => [p, vertices[(i + 1) % 4]]) };
     }
     const namedSides = { Triangle: 3, Square: 4, Pentagon: 5, Hexagon: 6, Septagon: 7, Octagon: 8, '9-sides': 9, '10-sides': 10, '11-sides': 11, '12-sides': 12 };
     const n = cfg.boundary === 'Circle' ? 64 : cfg.boundary === 'Custom' ? cfg.sides : namedSides[cfg.boundary];
@@ -240,4 +262,35 @@ export function sample_range(scene, cfg, width, height) {
     }
     if (!Number.isFinite(min)) min = 0;
     return { min, max: Math.max(max, min + 1e-6) };
+}
+
+// Bounds in camera-oriented graph coordinates. Infinite boundaries have no crop.
+export function boundary_view_bounds(cfg, geometry = boundary_geometry(cfg)) {
+    if (geometry.kind !== 1) return null;
+    const vertices = geometry.vertices.map(p => rotate_point(p, -cfg.rotationDegrees));
+    const minX = Math.min(...vertices.map(p => p.x)), maxX = Math.max(...vertices.map(p => p.x));
+    const minY = Math.min(...vertices.map(p => p.y)), maxY = Math.max(...vertices.map(p => p.y));
+    return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY };
+}
+
+export function boundary_fully_visible(cfg, width, height, bounds = boundary_view_bounds(cfg)) {
+    if (!bounds || width <= 0 || height <= 0) return false;
+    const center = rotate_point({ x: cfg.xCenter, y: cfg.yCenter }, -cfg.rotationDegrees);
+    const halfHeight = cfg.yHeight / 2, halfWidth = halfHeight * width / height;
+    const epsilon = 1e-8;
+    return bounds.minX >= center.x - halfWidth - epsilon && bounds.maxX <= center.x + halfWidth + epsilon &&
+        bounds.minY >= center.y - halfHeight - epsilon && bounds.maxY <= center.y + halfHeight + epsilon;
+}
+
+export function crop_view_config(cfg, bounds, width, height) {
+    const center = rotate_point({ x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 }, cfg.rotationDegrees);
+    // Accommodate rounding to integer image dimensions without cutting off an edge.
+    return { ...cfg, xCenter: center.x, yCenter: center.y, yHeight: Math.max(bounds.height, bounds.width * height / width) };
+}
+
+export function linked_dimensions(value, aspect, changed = 'width') {
+    let width = changed === 'width' ? value : value * aspect;
+    let height = changed === 'height' ? value : value / aspect;
+    const factor = Math.min(1, 4096 / width, 4096 / height, Math.sqrt(12000000 / (width * height)));
+    return { width: Math.max(1, Math.round(width * factor)), height: Math.max(1, Math.round(height * factor)) };
 }

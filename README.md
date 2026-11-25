@@ -3,7 +3,7 @@
 Cymatics.art - digital cymatics
 
 
-A Single-File Web App inspired by [FuzzyGraph](https://fuzzygraph.com), with reflecting boundaries, individual resonators, phase animation, and GLSL rendering. The canonical share URL is https://cymatics.app.
+A Single-File Web App inspired by [FuzzyGraph](https://fuzzygraph.com), with reflecting boundaries, individual resonators, phase animation, and GLSL rendering. The canonical share URL is https://cymatics.art.
 
 ## Build and run
 
@@ -24,11 +24,11 @@ Open http://localhost:8000 after `npm run serve`. `./build_and_serve.sh` builds 
 ## Controls
 
 - **Resonators:** Basic mode distributes up to 32 sources uniformly around the origin. One source sits at the origin. Advanced mode provides Add, Edit, and Remove, including per-source position, waveform, and phase settings. Switching modes preserves the list; changing a Basic resonator control regenerates it. Resonator Rotation rotates the layout around the origin in both modes while retaining the original source X/Y values.
-- **Boundary:** None, Circle, Binary Split, regular polygons with 3–12 sides, or Custom with 3–128 sides. Radius measures center to vertices. Binary Split means parallel infinite walls at x = ±radius. Boundary Rotation rotates the walls around the origin independently of the sources and camera. The position preview shows the rotated walls and sources and marks sources outside them in red.
+- **Boundary:** None, Circle, Binary Split, regular polygons with 3–12 sides, Rectangle with independent Width and Height, or Custom with 3–128 sides. Radius measures center to vertices. Binary Split means parallel infinite walls at x = ±radius. Boundary Rotation rotates the walls around the origin independently of the sources and camera. The position preview shows the rotated walls and sources and marks sources outside them in red.
 - **Phase:** Starts playing by default. The canvas Play/Pause button selects Animated/Fixed and stays synchronized with the sidebar. Fixed radians in [0, 2π], or discrete animation with `steps` evenly spaced phases and speed in steps per second. Source phase is `phase * phase_multiplier + phase_offset`. Dialogs and hidden tabs pause animation.
-- **View:** Drag to pan, scroll/pinch to zoom, Home to fit, Go to for precise coordinates and height. Rotation is in degrees. Fuzzy Level uses FuzzyGraph's power transfer on the absolute combined wave; zero highlights near-zero values. Automatic min/max use a sampled field; overrides stabilize contrast during animation.
+- **View:** Drag to pan, scroll/pinch to zoom, Home to fit, Go to for precise coordinates and height. Rotation is in degrees. Fuzzy Level uses FuzzyGraph's power transfer on the absolute combined wave; zero highlights near-zero values. Min Override defaults to zero and remains enabled when other settings change. Max Override defaults to 1. Changing wave, geometry, phase-step, camera settings, or a fixed phase clears Max Override so the current frame’s sampled maximum is used. Automatic phase animation, Play/Pause, timing speed, and color changes preserve a manually set maximum.
 - **Color:** Background Color controls the area outside the boundary in both the canvas and saved PNGs. Original FuzzyGraph color maps, reverse/invert, entry offset, cycles, hue, saturation, and luminosity adjustments.
-- **Files:** Save a PNG with full settings embedded in an uncompressed iTXt chunk (`cymaticsconfig`), or export JSON. Open restores either. Share encodes all settings, including the view and `resonators_list`, in URL parameters.
+- **Files:** Save a PNG with full settings embedded in an uncompressed iTXt chunk (`cymaticsconfig`), or export JSON. Crop to boundary is checked when a closed boundary is fully visible; it links export dimensions to the camera-oriented boundary bounds and makes pixels outside the shape transparent. Binary Split and None have no finite crop. Open restores either. Share encodes all settings, including the view and `resonators_list`, in URL parameters.
 
 Each source is stored exactly as a JSON object in `resonators_list`:
 
@@ -55,6 +55,7 @@ This is a finite geometric wave-interference model for art, rather than a full v
 - `src/js/ga_color.js`: FuzzyGraph color data and adjustments, retained from the reference project.
 - `src/js/png.js`: PNG settings metadata read/write.
 - `tests/cymatics.test.mjs`: geometry, waveform, phase, schema validation, and PNG round-trip tests.
+- `tests/export-controls.cjs`: optional Playwright checks for override defaults and invalidation, links, rectangle exports, aspect-ratio locking, and transparent boundary crops.
 - `tests/browser.cjs`: optional Playwright integration checks for actual GPU/CPU parity, editor, animation, share links, PNG restore, offline download, and mobile layout.
 
 Run `npm test` for the core tests and `node scripts/check-build.cjs` after building to verify the single-file output. To run browser checks with an existing Playwright installation:

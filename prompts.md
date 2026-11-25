@@ -65,12 +65,24 @@ In the main view area, there should be a similar +, -, home, and goto buttons. A
 
 Add a Rotation field in the Resonators section (which rotates the resonators), add a Rotation field in the Boundary section (which rotates the boundary), and add a Play/Pause button as a new button over the main view area. Make it play by default. If playing, a pause icon should be visible, and if paused, a play icon should appear. Play sets the Phase value to Animated, and Pause sets it to Fixed. Also change the "Color Map" section to be instead called "Color", and add a Background Color field that sets the background color for what is behind the boundary.
 
+
 ## Prompt 3 (executed with ChatGPT Sol 6.1 High)
 
 Set the defaults to the following: 6 resonators, distance from center = 2, amplitude = 1, frequency = 3, phase multiplier = -1, rotation (for resonators) = 90, for boundary, set shape to hexagon, radius to 4, and rotation to 90 degrees. For Phase, set to 30 steps, speed = 30.
 
+
 ## Prompt 4 (executed with ChatGPT Sol 6.1 High)
 
 Change default boundary to "Binary split"
+
+
+## Prompt 5 (executed with ChatGPT Sol 6.1 High)
+
+Make the following changes: Add some left padding to the "Cymatics.art" title, and make the title have more of a fuzzy halo glow. In the save dialog, add more padding between the text "Filename" and the file text box. Change the base URL from "cymatics.app" to "cymatics.art". Make the default settings be: number of resonators=2, distance from center = 1.5, frequency = 2, rotation (for resonators) = 90, boundary shape = Binary split, radius = 5, rotation (for boundary) = 90, and color map = gnuplot2, make the min overide = 0, and make the max override default to whatever the highest value is for the full phase cycle (which should update when settings are changed that would change the max value). Also change the Help dialog as follows: change the top intro text to be "A digital cymatics playground inspired by FuzzyGraph [and make this a link]. Arrange resonators, choose a reflecting boundary, and explore their interference. Technically, this is not really cymatics, but rather a way of playing with wave intererence patterns with boundaries similar to cymatics." Also remove the "GLSL / WebGL 2" text at the bottom of the help section. Also, for the save dialog, if the entire boundary is within view, Add a Checkmark to "Crop to boundary", which should save only the boundary. If this is selected, ensure that the width and height values keep the same aspect ratio of the boundary. Also, add a shape option called Rectangle right below Square. If Rectangle is selected, add a Width and Height input boxes (floats) for the rectangle width and height. Make links use the text color: #df33e0.  Make "Caleb Madrigal" (after Built by) in the Help section be a link.
+
+
+## Prompt 6 (executed with ChatGPT Sol 6.1 High)
+
+Remove the "Full phase cycle maximum" logic and instead set the default max override to 1. But when settings that might affect the max override change, remove the max override. Keep the min override set to 0 by default and don't turn it off.
 
 

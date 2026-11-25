@@ -19,7 +19,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         await page.goto(origin);
         await page.waitForFunction(() => document.getElementById('renderStatus').textContent.includes('reflected paths'));
         assert.equal(await page.locator('#errorBanner').isVisible(), false);
-        assert.equal(await page.locator('#numResonators').inputValue(), '6');
+        assert.equal(await page.locator('#numResonators').inputValue(), '2');
         assert.equal(await page.locator('[name=phaseMode][value=animated]').isChecked(), true);
         assert.equal(await page.locator('#playPauseButton').getAttribute('aria-label'), 'Pause');
         assert.equal(await page.locator('#pauseIcon').isVisible(), true);
@@ -40,7 +40,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 
         // Verify actual GLSL output against the CPU reference with all operators.
         for (const operator of ['+', '-', '*', '/']) {
-            const cfg = { ...default_config(), boundary: operator === '/' ? 'Binary Split' : 'Square', phaseMode: 'fixed', resonatorRotationDegrees: 27, boundaryRotationDegrees: 17, combineOperator: operator, fuzzyLevel: 24, colorMap: 'viridis', reverseColor: false };
+            const cfg = { ...default_config(), boundary: operator === '/' ? 'Binary Split' : 'Square', phaseMode: 'fixed', resonatorRotationDegrees: 27, boundaryRotationDegrees: 17, combineOperator: operator, fuzzyLevel: 24, colorMap: 'viridis', reverseColor: false, minOverride: null, maxOverride: null };
             cfg.resonators_list = cfg.resonators_list.slice(0, 2).map(r => ({ ...r, waveform: 'sine', amplitude: 1, frequency: .23 }));
             await page.goto(origin + '/?config=' + encodeURIComponent(JSON.stringify(cfg)));
             await page.waitForFunction(() => document.getElementById('renderStatus').textContent.includes('reflected paths'));
@@ -70,9 +70,11 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         console.log('PASS GPU / CPU field parity for all combine operators');
 
         await page.goto(origin);
+        await page.locator('#playPauseButton').click();
+        await page.locator('#boundary').selectOption('Circle');
+        await page.locator('#radius').fill('3'); await page.locator('#radius').press('Tab');
         // Keep the editor workflow fixture at three sources, independent of defaults.
         await page.locator('#numResonators').fill('3'); await page.locator('#numResonators').press('Tab');
-        await page.locator('#playPauseButton').click();
         await page.locator('#resonatorRotationDegrees').fill('35'); await page.locator('#resonatorRotationDegrees').press('Tab');
         await page.locator('#boundaryRotationDegrees').fill('20'); await page.locator('#boundaryRotationDegrees').press('Tab');
         await page.locator('#backgroundColor').evaluate(input => { input.value = '#123456'; input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); });
@@ -106,7 +108,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         await page.locator('[name=phaseMode][value=fixed]').check();
         await page.locator('#showShareButton').click();
         const share = new URL(await page.locator('#shareURL').inputValue());
-        assert.equal(share.origin,'https://cymatics.app');
+        assert.equal(share.origin,'https://cymatics.art');
         const saved = JSON.parse(share.searchParams.get('config'));
         assert.deepEqual(saved.resonators_list[3],{x:1.2,y:1.1,amplitude:4.2,frequency:1.7,phase_multiplier:0,phase_offset:1.571,waveform:'triangle'});
         assert.equal(saved.boundary,'Hexagon');
@@ -115,6 +117,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         console.log('PASS advanced CRUD, boundaries, phase animation, share state');
 
         await page.locator('#showSaveButton').click();
+        if (await page.locator('#cropBoundary').isChecked()) await page.locator('#cropBoundary').uncheck();
         await page.locator('#saveWidth').fill('192'); await page.locator('#saveHeight').fill('128');
         const pngDownload = page.waitForEvent('download'); await page.locator('#saveImageButton').click();
         const png = await pngDownload, pngPath = path.join(output,'pattern.png'); await png.saveAs(pngPath);

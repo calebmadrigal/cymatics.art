@@ -28,6 +28,7 @@ uniform vec2 uSplitNormal;
 uniform vec3 uBackgroundColor;
 uniform float uPhase;
 uniform float uFuzzy;
+uniform bool uTransparentOutside;
 uniform vec2 uRange;
 out vec4 outColor;
 const float TAU = 6.283185307179586;
@@ -78,7 +79,7 @@ void main() {
             edgeDistance = min(edgeDistance, abs(side));
         }
     }
-    if (!inside) { outColor = vec4(uBackgroundColor, 1.0); return; }
+    if (!inside) { outColor = uTransparentOutside ? vec4(0.0) : vec4(uBackgroundColor, 1.0); return; }
     float value = 0.0;
     bool first = true;
     for (int i = 0; i < 8192; i++) {
@@ -111,8 +112,8 @@ void main() {
     outColor = vec4(color, 1.0);
 }`;
 
-export function create_renderer(canvas) {
-    const gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true, alpha: false });
+export function create_renderer(canvas, { transparentOutside = false } = {}) {
+    const gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true, alpha: transparentOutside });
     if (!gl) throw new Error('Cymatics.art requires WebGL 2. Enable hardware acceleration or try a current browser.');
     function shader(type, source) {
         const result = gl.createShader(type);
@@ -127,7 +128,7 @@ export function create_renderer(canvas) {
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
     gl.useProgram(program);
     const uniforms = {};
-    for (const name of ['Sources', 'Colormap', 'Count', 'Operator', 'Boundary', 'EdgeCount', 'Edges', 'Resolution', 'Center', 'Height', 'Rotation', 'Radius', 'SplitNormal', 'BackgroundColor', 'Phase', 'Fuzzy', 'Range']) {
+    for (const name of ['Sources', 'Colormap', 'Count', 'Operator', 'Boundary', 'EdgeCount', 'Edges', 'Resolution', 'Center', 'Height', 'Rotation', 'Radius', 'SplitNormal', 'BackgroundColor', 'Phase', 'Fuzzy', 'Range', 'TransparentOutside']) {
         uniforms[name] = gl.getUniformLocation(program, 'u' + name + (name === 'Edges' ? '[0]' : ''));
     }
     const sourceTexture = gl.createTexture(), colorTexture = gl.createTexture();
@@ -170,7 +171,6 @@ export function create_renderer(canvas) {
             texture(0, sourceTexture); texture(1, colorTexture, gl.LINEAR);
             const range = sample_range(scene, cfg, canvas.width, canvas.height);
             const min = cfg.minOverride ?? range.min;
-            const max = cfg.maxOverride ?? range.max;
             gl.uniform1i(uniforms.Sources, 0); gl.uniform1i(uniforms.Colormap, 1);
             gl.uniform1i(uniforms.Count, scene.sources.length);
             gl.uniform1i(uniforms.Operator, ['+', '-', '*', '/'].indexOf(cfg.combineOperator));
@@ -186,6 +186,8 @@ export function create_renderer(canvas) {
             gl.uniform3fv(uniforms.BackgroundColor, background);
             gl.uniform1f(uniforms.Phase, cfg.phase);
             gl.uniform1f(uniforms.Fuzzy, cfg.fuzzyLevel);
+            gl.uniform1i(uniforms.TransparentOutside, transparentOutside ? 1 : 0);
+            const max = cfg.maxOverride ?? range.max;
             gl.uniform2f(uniforms.Range, min, Math.max(min + 1e-6, max));
             gl.viewport(0, 0, canvas.width, canvas.height);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
