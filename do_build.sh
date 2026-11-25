@@ -5,7 +5,3 @@ cd "$(dirname "$0")"
 npm ci
 npm test
 npm run build
-cp -R images dist/
-cp images/favicon.ico dist/favicon.ico
-cp dist/index.html dist/Cymatics.art.html
-node scripts/check-build.cjs

@@ -85,8 +85,13 @@ Make the following changes: Add some left padding to the "Cymatics.art" title, a
 
 Remove the "Full phase cycle maximum" logic and instead set the default max override to 1. But when settings that might affect the max override change, remove the max override. Keep the min override set to 0 by default and don't turn it off.
 
-## Prompt 7
+
+## Prompt 7 (executed with ChatGPT Sol 6.1 High)
 
 In mobile mode, make it where the sidebar goes down instead of to the left, and make the hide sidebar be a downward pointing arrow when it is visible, and an up arrow when hidden (like fuzzygraph).
 
+
+## Prompt 8 (executed with ChatGPT Sol 6.1 High)
+
+Use images/favicon.png as the new favicon, and create the right sizes and update all favicon images to use this image as the basis. Also add a link to the "Cymatics.art" title text (but don't change title color). Also, there is a bug where, on modals, when selecting text in a text box, if the mouse goes off the modal, the modal prematurely closes; fix that.
 

@@ -19,7 +19,7 @@ npm run serve
 
 Open http://localhost:8000 after `npm run serve`. `./build_and_serve.sh` builds and serves in one step. For live development, use `npm run dev` (port 1234).
 
-`dist/index.html` is the complete, self-contained app: all JavaScript, GLSL, styles, and color-map data are embedded. Open it directly in a WebGL 2 browser, or copy it anywhere and use it offline. `do_build.sh` also creates `dist/Cymatics.art.html`. The in-app Download button includes the current configuration in its offline copy.
+`dist/index.html` is the complete, self-contained app: all JavaScript, GLSL, styles, and color-map data are embedded. Open it directly in a WebGL 2 browser, or copy it anywhere and use it offline. `npm run build` also copies all favicon sizes to `dist` and creates `dist/Cymatics.art.html`. The in-app Download button includes the current configuration in its offline copy.
 
 ## Deploy to Cloudflare
 
@@ -48,6 +48,10 @@ For a manual deployment after building, use `npm run deploy` and authenticate wi
 Cloudflare **Pages** is a separate setup flow. For Pages Git integration, select framework preset **None**, build command `npm run build`, and build output directory `dist`. The Workers configuration in this repository is intended for the Workers setup screen.
 
 Official references: [Workers Static Assets configuration](https://developers.cloudflare.com/workers/static-assets/binding/) and [Pages Git integration](https://developers.cloudflare.com/pages/get-started/git-integration/).
+
+## Favicon artwork
+
+`images/favicon_wb.png` is the source image. Each build regenerates 16, 32, and 48 px PNG favicons, the 180 px Apple touch icon, 192 and 512 px Android/Chrome icons, and a multi-size ICO (16, 24, 32, 48, 64, 128, 256). The generated icon links are embedded into the HTML so offline copies retain their icons. `scripts/package-assets.cjs` also copies the icon files to the deployment root and `dist/images`.
 
 ## Controls
 
@@ -84,6 +88,7 @@ This is a finite geometric wave-interference model for art, rather than a full v
 - `src/js/png.js`: PNG settings metadata read/write.
 - `tests/cymatics.test.mjs`: geometry, waveform, phase, schema validation, and PNG round-trip tests.
 - `tests/export-controls.cjs`: optional Playwright checks for override defaults and invalidation, links, rectangle exports, aspect-ratio locking, and transparent boundary crops.
+- `tests/dialogs-icons.cjs`: optional Playwright checks for embedded favicons, the white title link, and text-selection drags that cross modal boundaries.
 - `tests/browser.cjs`: optional Playwright integration checks for actual GPU/CPU parity, editor, animation, share links, PNG restore, offline download, and mobile layout.
 
 Run `npm test` for the core tests and `node scripts/check-build.cjs` after building to verify the single-file output. To run browser checks with an existing Playwright installation:

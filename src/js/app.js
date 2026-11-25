@@ -192,7 +192,21 @@ function open_dialog(id) {
     $(id).showModal();
 }
 for (const button of document.querySelectorAll('.close-modal, [data-close]')) button.addEventListener('click', () => button.closest('dialog').close());
-for (const dialog of document.querySelectorAll('dialog')) dialog.addEventListener('click', event => { if (event.target === dialog && (event.clientX < dialog.getBoundingClientRect().left || event.clientX > dialog.getBoundingClientRect().right || event.clientY < dialog.getBoundingClientRect().top || event.clientY > dialog.getBoundingClientRect().bottom)) dialog.close(); });
+for (const dialog of document.querySelectorAll('dialog')) {
+    let startedOnBackdrop = false;
+    function on_backdrop(event) {
+        const bounds = dialog.getBoundingClientRect();
+        return event.target === dialog && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom);
+    }
+    dialog.addEventListener('pointerdown', event => { startedOnBackdrop = event.button === 0 && on_backdrop(event); });
+    dialog.addEventListener('pointercancel', () => { startedOnBackdrop = false; });
+    dialog.addEventListener('close', () => { startedOnBackdrop = false; });
+    dialog.addEventListener('click', event => {
+        const dismiss = startedOnBackdrop && on_backdrop(event);
+        startedOnBackdrop = false;
+        if (dismiss) dialog.close();
+    });
+}
 
 function edit_resonator(index = null) {
     editIndex = index;
