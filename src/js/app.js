@@ -5,7 +5,7 @@ import { TAU, MAX_RESONATORS, default_config, config_with_patch, validate_config
     build_sources, rotated_resonators, inside_boundary, screen_to_world, phase_at_step, boundary_view_bounds, boundary_fully_visible, crop_view_config, linked_dimensions } from './cymatics.js';
 import { create_renderer } from './cymatics_glsl.js';
 import { add_png_config, read_png_config } from './png.js';
-import { supported_video_formats, video_plan, video_phase, even_video_dimensions, video_filename, record_video } from './video.js';
+import { supported_video_formats, video_export_formats, video_plan, video_phase, even_video_dimensions, video_filename, record_video } from './video.js';
 
 const $ = id => document.getElementById(id);
 const offlineDocument = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -15,7 +15,7 @@ let renderer = null, scene = null, sceneKey = '', listKey = '', colorsKey = '';
 let editIndex = null, selectedIndex = 0, frameRequested = false, toastTimer;
 let sampledRange = { min: 0, max: 1 };
 let saveCropBounds = null;
-let videoController = null, saveBusy = false;
+let videoController = null, saveBusy = false, videoSummaryRequest = 0;
 
 function toast(message) {
     $('toast').textContent = message; $('toast').hidden = false;
@@ -370,23 +370,33 @@ for (const [id, dimension] of [['saveWidth', 'width'], ['saveHeight', 'height']]
 }
 
 function video_supported() {
-    return supported_video_formats().length > 0 && typeof HTMLCanvasElement.prototype.captureStream === 'function';
+    return (typeof VideoEncoder === 'function' && typeof VideoFrame === 'function') || (supported_video_formats().length > 0 && typeof HTMLCanvasElement.prototype.captureStream === 'function');
 }
 
 function selected_video_plan() {
     return video_plan(config.get(), { width: Number($('saveWidth').value), height: Number($('saveHeight').value), fps: Number($('videoFps').value), cycles: Number($('videoCycles').value) });
 }
 
-function update_video_summary() {
+async function update_video_summary() {
+    const request = ++videoSummaryRequest;
     if ($('saveType').value !== 'video') return;
+    $('saveImageButton').disabled = true;
     if (!video_supported()) {
-        $('videoSummary').textContent = 'Video recording is unavailable in this browser. Image and JSON saving are still available.';
+        $('videoSummary').textContent = 'Video export is unavailable in this browser. Image and JSON saving are still available.';
         return;
     }
     try {
-        const plan = selected_video_plan(), format = supported_video_formats()[0];
-        $('videoSummary').textContent = `${format.label} · ${plan.width} × ${plan.height} · ${plan.duration.toFixed(2)} seconds · ${plan.totalFrames} target frames`;
-    } catch (error) { $('videoSummary').textContent = error.message; }
+        const plan = selected_video_plan();
+        $('videoSummary').textContent = 'Checking video support…';
+        const [format] = await video_export_formats(plan);
+        if (request !== videoSummaryRequest || $('saveType').value !== 'video') return;
+        if (!format) throw new Error('No video encoder supports this resolution. Try a smaller size.');
+        $('videoSummary').textContent = `${format.label} · ${plan.width} × ${plan.height} · ${plan.duration.toFixed(2)} seconds · ${plan.totalFrames} frames${format.live ? ' · live recording' : ''}`;
+        $('saveImageButton').disabled = saveBusy;
+        $('saveFilename').value = video_filename($('saveFilename').value, format.extension);
+    } catch (error) {
+        if (request === videoSummaryRequest) $('videoSummary').textContent = error.message;
+    }
 }
 
 function apply_video_resolution() {
@@ -409,8 +419,8 @@ function sync_save_mode(resetDimensions = false) {
     $('videoFps').disabled = !video || saveBusy; $('videoCycles').disabled = !video || saveBusy;
     $('saveJsonButton').hidden = video;
     $('saveDescription').textContent = video ? 'Save an animation of complete phase cycles using the current resonators, boundary, colors, and view.' : 'Save a PNG with the complete configuration embedded. Open the image later to restore this pattern.';
-    $('saveViewHint').textContent = video ? 'Video uses an independent export view. Cropped videos use Background Color outside the shape.' : 'Exports the current view at the selected size. Animation is captured at its current phase.';
-    $('saveImageButton').textContent = saveBusy ? (video ? 'Recording…' : 'Saving…') : video ? 'Save video' : 'Save image';
+    $('saveViewHint').textContent = video ? 'Exports equally spaced phases through each complete cycle. Cropped videos use Background Color outside the shape.' : 'Exports the current view at the selected size. Animation is captured at its current phase.';
+    $('saveImageButton').textContent = saveBusy ? (video ? 'Exporting…' : 'Saving…') : video ? 'Save video' : 'Save image';
     $('saveImageButton').disabled = saveBusy || (video && !video_supported());
     $('saveFilename').value = video_filename($('saveFilename').value, video ? (format?.extension || 'webm') : 'png');
     for (const id of ['saveWidth', 'saveHeight']) { $(id).min = video ? '2' : '1'; $(id).step = video ? '2' : '1'; }
@@ -467,9 +477,9 @@ $('saveForm').addEventListener('submit', async event => {
                 canvas: saveCanvas, plan, signal: videoController.signal,
                 drawFrame(frame) { exportRenderer.draw({ ...cfg, phase: video_phase(cfg, frame, plan.framesPerCycle) }, exportScene); exportRenderer.gl.flush(); },
                 onFormat(format) { $('saveFilename').value = video_filename($('saveFilename').value, format.extension); },
-                onProgress({ frame, total, elapsed }) {
+                onProgress({ frame, total }) {
                     $('videoProgressBar').value = frame / total;
-                    $('videoProgressText').textContent = `Recording · ${Math.round(frame / total * 100)}% · ${elapsed.toFixed(1)} / ${plan.duration.toFixed(1)} seconds`;
+                    $('videoProgressText').textContent = `Exporting · ${Math.round(frame / total * 100)}% · frame ${frame} / ${total}`;
                 }
             });
             download_blob(result.blob, video_filename($('saveFilename').value, result.format.extension));

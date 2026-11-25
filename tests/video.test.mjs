@@ -29,15 +29,18 @@ test('video rejects invalid dimensions, FPS, cycle count, and excessive duration
     assert.throws(() => video_plan({ ...default_config(), steps: 1000, speed: 1 }, settings), /five minutes/);
 });
 
-test('video phases start at the current phase and repeat all discrete steps without a duplicate endpoint', () => {
-    const cfg = { ...default_config(), steps: 4, phase: .3 };
-    const phases = Array.from({ length: 8 }, (_, i) => video_phase(cfg, i, 4));
-    for (let i = 0; i < 8; i++) assert.ok(Math.abs(phases[i] - (.3 + TAU * (i % 4) / 4)) < 1e-10);
-    assert.notEqual(phases[3], phases[0]);
-    assert.equal(video_phase(cfg, 8, 4), phases[0]);
-    const repeated = Array.from({ length: 8 }, (_, i) => video_phase(cfg, i, 8));
-    assert.deepEqual(repeated, phases.slice(0, 4).flatMap(p => [p, p]));
-    assert.equal(cfg.phase, .3);
+test('every video phase increment, including the seam, is equal when steps and FPS differ', () => {
+    for (const steps of [1, 7, 30, 31, 100]) for (const framesPerCycle of [2, 8, 24, 30, 56]) {
+        const cfg = { ...default_config(), steps, phase: 5.9 };
+        const phases = Array.from({ length: framesPerCycle * 3 }, (_, i) => video_phase(cfg, i, framesPerCycle));
+        for (let i = 0; i < phases.length; i++) {
+            const delta = (phases[(i + 1) % phases.length] - phases[i] + TAU) % TAU;
+            assert.ok(Math.abs(delta - TAU / framesPerCycle) < 1e-10, `Uneven phase step: steps=${steps}, frames=${framesPerCycle}, i=${i}`);
+            assert.equal(phases[i], phases[i % framesPerCycle]);
+        }
+        assert.notEqual(phases[framesPerCycle - 1], phases[0]);
+        assert.equal(cfg.phase, 5.9);
+    }
 });
 
 test('video resolutions and filenames use encoder-compatible dimensions and extensions', () => {

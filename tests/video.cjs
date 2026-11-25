@@ -9,7 +9,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 (async () => {
     const root = path.resolve(__dirname, '..');
     const { default_config, generate_resonators } = await import(pathToFileURL(root + '/src/js/cymatics.js'));
-    const cfg = { ...default_config(), boundary: 'None', phaseMode: 'fixed', phase: .4, steps: 10, speed: 10, numResonators: 1, waveform: 'sine', frequency: .4, phase_multiplier: 1 };
+    const cfg = { ...default_config(), boundary: 'None', phaseMode: 'fixed', phase: .4, steps: 7, speed: 7, numResonators: 1, waveform: 'sine', frequency: .4, phase_multiplier: 1 };
     cfg.resonators_list = generate_resonators(cfg);
     const url = new URL(process.env.APP_URL || pathToFileURL(root + '/dist/index.html').href);
     url.searchParams.set('config', JSON.stringify(cfg));
@@ -19,6 +19,28 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     const errors = [], downloads = [];
     page.on('pageerror', e => errors.push(e.message)); page.on('download', d => downloads.push(d));
     await page.addInitScript(() => {
+        window.skipMP4 = new URL(location.href).searchParams.has('webmOnly');
+        window.disableVideo = new URL(location.href).searchParams.has('noVideo');
+        const encoder = globalThis.VideoEncoder;
+        window.exportEncoders = [];
+        if (window.disableVideo) globalThis.VideoEncoder = undefined;
+        else if (encoder) {
+            const check = encoder.isConfigSupported.bind(encoder);
+            encoder.isConfigSupported = config => window.skipMP4 && /^(avc|hvc|hev)/.test(config.codec) ? Promise.resolve({ supported: false, config }) : check(config);
+            globalThis.VideoEncoder = new Proxy(encoder, { construct(target, args) { const instance = Reflect.construct(target, args); window.exportEncoders.push(instance); return instance; } });
+        }
+        // Inspect the phases actually submitted to the GPU, and optionally slow rendering down.
+        window.exportPhases = [];
+        const locations = new WeakMap(), gl = WebGL2RenderingContext.prototype;
+        const getLocation = gl.getUniformLocation, uniform = gl.uniform1f;
+        gl.getUniformLocation = function(program, name) { const loc = getLocation.call(this, program, name); if (loc) locations.set(loc, name); return loc; };
+        gl.uniform1f = function(loc, value) {
+            if (locations.get(loc) === 'uPhase' && this.canvas.parentElement?.id === 'videoPreview') {
+                window.exportPhases.push(value);
+                const until = performance.now() + (window.slowExport || 0); while (performance.now() < until) {}
+            }
+            return uniform.call(this, loc, value);
+        };
         const supported = MediaRecorder.isTypeSupported.bind(MediaRecorder);
         MediaRecorder.isTypeSupported = type => !window.disableVideo && !(window.skipMP4 && type.startsWith('video/mp4')) && supported(type);
         const capture = HTMLCanvasElement.prototype.captureStream;
@@ -35,14 +57,17 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         await page.locator('#videoResolution').selectOption('custom');
         await page.locator('#saveWidth').fill('320'); await page.locator('#saveHeight').fill('180'); await page.locator('#saveHeight').press('Tab');
         await page.locator('#videoFps').fill('10'); await page.locator('#videoCycles').fill('1');
+        await page.waitForFunction(() => { const text = document.getElementById('videoSummary').textContent; return text.includes('10 frames') || text.includes('unavailable'); });
     }
     async function assertStopped() {
         await page.waitForFunction(() => document.getElementById('saveForm').getAttribute('aria-busy') === 'false');
         assert.equal(await page.evaluate(() => exportStreams.every(s => s.getTracks().every(t => t.readyState === 'ended'))), true);
         assert.equal(await page.locator('#videoPreview canvas').count(), 0);
+        assert.equal(await page.evaluate(() => exportEncoders.every(e => e.state === 'closed')), true, 'Video encoders must close after export or cancellation');
     }
     async function exportClip(extension, cycles = 1, width = 320, height = 180, background = null) {
         await page.locator('#saveFilename').fill('waves.png');
+        await page.evaluate(() => { window.exportPhases = []; });
         const waiting = page.waitForEvent('download', { timeout: 30000 }); await page.locator('#saveImageButton').click();
         const download = await waiting; assert.equal(download.suggestedFilename(), 'waves.' + extension);
         const filename = path.join(output, download.suggestedFilename()); await download.saveAs(filename);
@@ -51,10 +76,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         if (process.env.FFPROBE_PATH) {
             const metadata = JSON.parse(execFileSync(process.env.FFPROBE_PATH, ['-v', 'error', '-count_frames', '-show_entries', 'stream=width,height,nb_read_frames,duration,r_frame_rate:format=duration:frame=best_effort_timestamp_time,pkt_duration_time', '-of', 'json', filename], { encoding: 'utf8' }));
             const stream = metadata.streams[0]; assert.equal(stream.width, width); assert.equal(stream.height, height);
-            assert.ok(Number(stream.nb_read_frames) >= cycles * 8, JSON.stringify(stream));
+            assert.equal(Number(stream.nb_read_frames), cycles * 10, JSON.stringify(stream));
             const first = metadata.frames[0], last = metadata.frames.at(-1);
             const duration = Number(stream.duration || metadata.format.duration || (Number(last.best_effort_timestamp_time) - Number(first.best_effort_timestamp_time) + Number(last.pkt_duration_time || .1)));
-            assert.ok(Math.abs(duration - cycles) < .4, `Unexpected duration: ${duration}`); console.log(extension, stream);
+            assert.ok(Math.abs(duration - cycles) < .002, `Unexpected duration: ${duration}`);
+            for (let i = 0; i < metadata.frames.length; i++) assert.ok(Math.abs(Number(metadata.frames[i].best_effort_timestamp_time) - i / 10) < .002, `Uneven timestamp at frame ${i}`);
+            console.log(extension, stream);
         }
         if (process.env.FFMPEG_PATH) {
             const data = execFileSync(process.env.FFMPEG_PATH, ['-v', 'error', '-i', filename, '-f', 'framemd5', '-'], { encoding: 'utf8' });
@@ -65,6 +92,13 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
                 for (let channel = 0; channel < 3; channel++) assert.ok(Math.abs(pixels[channel] - background[channel]) < 10, `Crop background mismatch: ${pixels.subarray(0, 3)}`);
             }
         }
+        const phases = await page.evaluate(() => window.exportPhases);
+        assert.equal(phases.length, cycles * 10, 'Exactly one draw for each encoded frame');
+        for (let i = 0; i < phases.length; i++) {
+            const next = phases[(i + 1) % phases.length];
+            const delta = (next - phases[i] + 2 * Math.PI) % (2 * Math.PI);
+            assert.ok(Math.abs(delta - 2 * Math.PI / 10) < 1e-8, `Uneven phase increment at frame ${i}`);
+        }
         await assertStopped();
         assert.deepEqual(await configSnapshot(), baseline);
     }
@@ -72,14 +106,17 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     try {
         await page.goto(url.href); await page.waitForFunction(() => document.getElementById('renderStatus').textContent.includes('reflected paths'));
         assert.equal(await page.locator('[data-action=save]').count(), 1); baseline = await configSnapshot();
-        await openVideo(); assert.match(await page.locator('#videoSummary').textContent(), /1.00 seconds · 10 target frames/);
+        await openVideo(); assert.match(await page.locator('#videoSummary').textContent(), /1.00 seconds · 10 frames/);
         const supportsMP4 = await page.evaluate(() => MediaRecorder.isTypeSupported('video/mp4'));
         await page.screenshot({ path: path.join(output, 'save-video-desktop.png') });
         await exportClip(supportsMP4 ? 'mp4' : 'webm');
-        console.log('PASS preferred native video download; main config and phase preserved');
-        await page.evaluate(() => { window.skipMP4 = true; });
+        console.log('PASS MP4: exact frame count, uniform phase/timestamps, main config and phase preserved');
+        const webmURL = new URL(url); webmURL.searchParams.set('webmOnly', '1');
+        await page.goto(webmURL.href); await page.waitForFunction(() => document.getElementById('renderStatus').textContent.includes('reflected paths'));
+        baseline = await configSnapshot();
+        await page.evaluate(() => { window.slowExport = 125; });
         await openVideo(); await page.locator('#videoCycles').fill('2'); assert.match(await page.locator('#videoSummary').textContent(), /WebM.*2.00 seconds/); await exportClip('webm', 2);
-        console.log('PASS native WebM fallback and two complete cycles');
+        console.log('PASS WebM fallback: exact frame count, uniform phase/timestamps and two cycles despite slow rendering');
         const croppedURL = new URL(url); croppedURL.searchParams.set('config', JSON.stringify({ ...cfg, boundary: 'Circle', radius: 2, yHeight: 6, backgroundColor: '#123456' }));
         await page.goto(croppedURL.href); await page.waitForFunction(() => document.getElementById('renderStatus').textContent.includes('reflected paths'));
         baseline = await configSnapshot();
@@ -89,7 +126,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         console.log('PASS circular crop preserves aspect and uses the selected opaque background');
 
         for (const cancel of ['button', 'close', 'escape']) {
-            await openVideo(); await page.locator('#videoCycles').fill('10'); await page.locator('#saveImageButton').click();
+            await openVideo(); await page.locator('#videoCycles').fill('100'); await page.locator('#saveImageButton').click();
             await page.waitForFunction(() => document.getElementById('videoProgressBar').value > 0);
             const count = downloads.length;
             if (cancel === 'button') await page.locator('#cancelVideoButton').click();
@@ -99,16 +136,18 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
             if (cancel === 'button') { assert.equal(await page.locator('#saveModal').isVisible(), true); await page.locator('#saveModal .close-modal').click(); }
             assert.deepEqual(await configSnapshot(), baseline);
         }
-        console.log('PASS Cancel, close and Escape release recording tracks without a partial download');
+        console.log('PASS Cancel, close and Escape close encoders without a partial download');
 
-        await page.evaluate(() => { window.disableVideo = true; }); await openVideo();
+        const unsupportedURL = new URL(url); unsupportedURL.searchParams.set('noVideo', '1');
+        await page.goto(unsupportedURL.href); await page.waitForFunction(() => document.getElementById('renderStatus').textContent.includes('reflected paths'));
+        await openVideo();
         assert.equal(await page.locator('#saveImageButton').isDisabled(), true); assert.match(await page.locator('#videoSummary').textContent(), /unavailable/);
         await page.locator('#saveType').selectOption('image'); assert.equal(await page.locator('#saveImageButton').isDisabled(), false);
         assert.equal(await page.locator('#saveJsonButton').isVisible(), true); await page.locator('#saveModal .close-modal').click();
-        await page.evaluate(() => { window.disableVideo = false; });
+        await page.goto(url.href); await page.waitForFunction(() => document.getElementById('renderStatus').textContent.includes('reflected paths'));
         await page.setViewportSize({ width: 390, height: 844 });
         await page.locator('#mobileMenuButton').click(); await openVideo();
-        await page.locator('#videoCycles').fill('1'); await page.screenshot({ path: path.join(output, 'save-video-mobile.png') });
+        await page.locator('#videoCycles').fill('100'); await page.screenshot({ path: path.join(output, 'save-video-mobile.png') });
         const box = await page.locator('#saveModal').boundingBox(); assert.ok(box.x >= 0 && box.x + box.width <= 391);
         await page.locator('#saveImageButton').click(); await page.locator('#cancelVideoButton').click(); await assertStopped();
         await page.locator('#saveModal .close-modal').click();

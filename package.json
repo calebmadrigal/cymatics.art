@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "mediabunny": "^1.66.4",
     "nanostores": "^1.0.1"
   },
   "devDependencies": {
