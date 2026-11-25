@@ -19,7 +19,7 @@ npm run serve
 
 Open http://localhost:8000 after `npm run serve`. `./build_and_serve.sh` builds and serves in one step. For live development, use `npm run dev` (port 1234).
 
-`dist/index.html` is the complete, self-contained app: all JavaScript, GLSL, styles, and color-map data are embedded. Open it directly in a WebGL 2 browser, or copy it anywhere and use it offline. `npm run build` also copies all favicon sizes to `dist` and creates `dist/Cymatics.art.html`. The in-app Download button includes the current configuration in its offline copy.
+`dist/index.html` is the complete, self-contained app: all JavaScript, GLSL, styles, and color-map data are embedded. Open it directly in a WebGL 2 browser, or copy it anywhere and use it offline. `npm run build` also copies all favicon sizes to `dist` and creates `dist/Cymatics.art.html`. The in-app Download button includes the current configuration in its offline copy and names it `Cymatics.art_<version>.html`, using the version from `package.json`.
 
 ## Deploy to Cloudflare
 

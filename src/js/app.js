@@ -1,5 +1,6 @@
 // UI state follows FuzzyGraph's nanostores + DOM event/listener style.
 import { map } from 'nanostores';
+import { version as APP_VERSION } from '../../package.json';
 import { matplotlibColorData, getMatplotlibColormap } from './ga_color.js';
 import { TAU, MAX_RESONATORS, default_config, config_with_patch, validate_config, validate_resonator, generate_resonators,
     build_sources, rotated_resonators, inside_boundary, screen_to_world, phase_at_step, boundary_view_bounds, boundary_fully_visible, crop_view_config, linked_dimensions } from './cymatics.js';
@@ -8,6 +9,7 @@ import { add_png_config, read_png_config } from './png.js';
 import { supported_video_formats, video_export_formats, video_plan, video_phase, even_video_dimensions, video_filename, record_video } from './video.js';
 
 const $ = id => document.getElementById(id);
+$('appVersion').textContent = APP_VERSION;
 const offlineDocument = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
 const config = map(default_config());
 const canvas = $('mainCanvas');
@@ -450,7 +452,7 @@ $('copyShareButton').addEventListener('click', async () => {
 $('downloadAppButton').addEventListener('click', () => {
     const json = JSON.stringify(config.get()).replace(/</g, '\\u003c');
     const html = offlineDocument.replace(/(<script id="savedConfig" type="application\/json">)[\s\S]*?(<\/script>)/, (_, start, end) => start + json + end);
-    download_blob(new Blob([html], { type: 'text/html' }), 'Cymatics.art.html'); toast('Downloaded an offline copy with this pattern.');
+    download_blob(new Blob([html], { type: 'text/html' }), `Cymatics.art_${APP_VERSION}.html`); toast('Downloaded an offline copy with this pattern.');
 });
 $('saveJsonButton').addEventListener('click', () => download_blob(new Blob([JSON.stringify(config.get(), null, 4)], { type: 'application/json' }), 'Cymatics.art.json'));
 $('saveForm').addEventListener('submit', async event => {

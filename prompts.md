@@ -111,3 +111,9 @@ Add the video download functionality we discussed, with controls for resolution,
 There is a small problem with the video save functionality - the loop is not quite seamless. Make sure that logic to save a full phase is indeed doing a complete cycle with equal steps between.
 
 
+## Prompt 12 (executed with ChatGPT Sol 6.1 High)
+
+Bump version to 1.1.0. Also add logic so that, when the download app button is pressed, the filename has a _1.1.0 suffix (which should change based on version number).
+
+
+
