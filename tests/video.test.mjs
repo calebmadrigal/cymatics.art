@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { Output, BufferTarget, WebMOutputFormat, EncodedVideoPacketSource, EncodedPacket, Input, BlobSource, WEBM } from 'mediabunny';
 import assert from 'node:assert/strict';
 import { default_config, TAU } from '../src/js/cymatics.js';
 import { supported_video_formats, video_plan, video_phase, even_video_dimensions, video_filename, record_video } from '../src/js/video.js';
@@ -54,6 +55,11 @@ test('video resolutions and filenames use encoder-compatible dimensions and exte
 
 test('recording falls back after an MP4 startup failure and releases capture tracks', async () => {
     const originals = { MediaRecorder: globalThis.MediaRecorder, document: globalThis.document };
+    const target = new BufferTarget(), fixture = new Output({ format: new WebMOutputFormat(), target });
+    const source = new EncodedVideoPacketSource('vp8'); fixture.addVideoTrack(source);
+    await fixture.start();
+    await source.add(new EncodedPacket(new Uint8Array([0x10, 0, 0, 0x9d, 0x01, 0x2a, 2, 0, 2, 0]), 'key', 0, 1 / 30), { decoderConfig: { codec: 'vp8', codedWidth: 2, codedHeight: 2 } });
+    source.close(); await fixture.finalize();
     let stopped = false; const tried = [], drawn = [];
     globalThis.document = new EventTarget();
     class Recorder {
@@ -65,7 +71,7 @@ test('recording falls back after an MP4 startup failure and releases capture tra
         }
         stop() {
             this.state = 'inactive';
-            queueMicrotask(() => { this.ondataavailable({ data: new Blob(['recorded frames']) }); this.onstop(); });
+            queueMicrotask(() => { this.ondataavailable({ data: new Blob([target.buffer]) }); this.onstop(); });
         }
     }
     globalThis.MediaRecorder = Recorder;
@@ -74,6 +80,11 @@ test('recording falls back after an MP4 startup failure and releases capture tra
     try {
         const result = await record_video({ canvas, plan: { ...settings, fps: 60, totalFrames: 2, duration: 2 / 60 }, drawFrame: frame => drawn.push(frame) });
         assert.equal(result.format.extension, 'webm'); assert.ok(result.blob.size > 0);
+        const tagged = new Input({ source: new BlobSource(result.blob), formats: [WEBM] });
+        try {
+            const tags = await tagged.getMetadataTags();
+            assert.equal(tags.raw.SOURCE, 'cymatics.art'); assert.equal(tags.comment, 'Created with https://cymatics.art');
+        } finally { tagged.dispose(); }
         assert.deepEqual(tried.slice(0, 3), ['video/mp4', 'video/mp4;codecs=avc1', 'video/webm;codecs=vp9']);
         assert.equal(stopped, true); assert.ok(drawn.includes(0)); assert.ok(drawn.includes(1));
         const controller = new AbortController(); controller.abort();

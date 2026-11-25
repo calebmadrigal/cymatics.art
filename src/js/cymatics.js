@@ -26,10 +26,10 @@ export function default_config() {
         app: 'Cymatics.art', version: 1, advanced: false,
         numResonators: 2, distance: 1.5, amplitude: 1, frequency: 2,
         phase_multiplier: -1, waveform: 'sinc', combineOperator: '+',
-        resonatorRotationDegrees: 90, boundaryRotationDegrees: 90,
-        boundary: 'Binary Split', radius: 5, sides: 7, boundaryWidth: 8, boundaryHeight: 6,
+        resonatorRotationDegrees: 0, boundaryRotationDegrees: 0,
+        boundary: 'Binary Split', radius: 8, sides: 7, boundaryWidth: 8, boundaryHeight: 6,
         phaseMode: 'animated', phase: 0, steps: 30, speed: 30,
-        fuzzyLevel: 12, minOverride: 0, maxOverride: 1, rotationDegrees: 0,
+        fuzzyLevel: 22, minOverride: 0, maxOverride: 1, rotationDegrees: 0,
         backgroundColor: '#0e1116',
         colorMap: 'gnuplot2', reverseColor: true, invertColor: false,
         colorStart: 0, colorCycles: 1, hueShiftDegrees: 0, saturationPercent: 0, luminosityPercent: 0,
@@ -39,19 +39,9 @@ export function default_config() {
     return cfg;
 }
 
-// User edits that can change the raw field range invalidate a saved maximum.
-// Animation advances phase without invalidating the user's chosen color scale.
-export function config_with_patch(cfg, patch, { animation = false } = {}) {
-    const rangeKeys = ['numResonators', 'distance', 'amplitude', 'frequency', 'phase_multiplier', 'waveform',
-        'resonators_list', 'resonatorRotationDegrees', 'combineOperator', 'boundary', 'radius', 'sides',
-        'boundaryRotationDegrees', 'boundaryWidth', 'boundaryHeight', 'steps',
-        'xCenter', 'yCenter', 'yHeight', 'rotationDegrees'];
-    if (!animation) rangeKeys.push('phase');
-    const next = { ...cfg, ...patch };
-    if (!Object.hasOwn(patch, 'maxOverride') && rangeKeys.some(key => Object.hasOwn(patch, key) && JSON.stringify(patch[key]) !== JSON.stringify(cfg[key]))) {
-        next.maxOverride = null;
-    }
-    return next;
+// Overrides stay at the user's selected values until explicitly changed.
+export function config_with_patch(cfg, patch) {
+    return { ...cfg, ...patch };
 }
 
 function number(value, name, min = -1e6, max = 1e6, integer = false) {

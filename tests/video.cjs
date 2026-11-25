@@ -6,6 +6,7 @@ const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 const { execFileSync } = require('node:child_process');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const { Input, BlobSource, MP4, WEBM } = require('mediabunny');
 (async () => {
     const root = path.resolve(__dirname, '..');
     const { default_config, generate_resonators } = await import(pathToFileURL(root + '/src/js/cymatics.js'));
@@ -22,8 +23,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         window.skipMP4 = new URL(location.href).searchParams.has('webmOnly');
         window.disableVideo = new URL(location.href).searchParams.has('noVideo');
         const encoder = globalThis.VideoEncoder;
+        window.liveVideo = new URL(location.href).searchParams.has('liveVideo');
         window.exportEncoders = [];
-        if (window.disableVideo) globalThis.VideoEncoder = undefined;
+        if (window.disableVideo || window.liveVideo) globalThis.VideoEncoder = undefined;
         else if (encoder) {
             const check = encoder.isConfigSupported.bind(encoder);
             encoder.isConfigSupported = config => window.skipMP4 && /^(avc|hvc|hev)/.test(config.codec) ? Promise.resolve({ supported: false, config }) : check(config);
@@ -65,7 +67,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         assert.equal(await page.locator('#videoPreview canvas').count(), 0);
         assert.equal(await page.evaluate(() => exportEncoders.every(e => e.state === 'closed')), true, 'Video encoders must close after export or cancellation');
     }
-    async function exportClip(extension, cycles = 1, width = 320, height = 180, background = null) {
+    async function exportClip(extension, cycles = 1, width = 320, height = 180, background = null, live = false) {
         await page.locator('#saveFilename').fill('waves.png');
         await page.evaluate(() => { window.exportPhases = []; });
         const waiting = page.waitForEvent('download', { timeout: 30000 }); await page.locator('#saveImageButton').click();
@@ -73,14 +75,22 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         const filename = path.join(output, download.suggestedFilename()); await download.saveAs(filename);
         const bytes = await fs.readFile(filename); assert.ok(bytes.length > 1000);
         if (extension === 'mp4') assert.equal(bytes.subarray(4, 8).toString(), 'ftyp'); else assert.equal(bytes.subarray(0, 4).toString('hex'), '1a45dfa3');
+        const input = new Input({ source: new BlobSource(new Blob([bytes])), formats: [MP4, WEBM] });
+        try {
+            const tags = await input.getMetadataTags();
+            assert.equal(tags.raw.SOURCE, 'cymatics.art');
+            assert.equal(tags.comment, 'Created with https://cymatics.art');
+        } finally { input.dispose(); }
         if (process.env.FFPROBE_PATH) {
-            const metadata = JSON.parse(execFileSync(process.env.FFPROBE_PATH, ['-v', 'error', '-count_frames', '-show_entries', 'stream=width,height,nb_read_frames,duration,r_frame_rate:format=duration:frame=best_effort_timestamp_time,pkt_duration_time', '-of', 'json', filename], { encoding: 'utf8' }));
+            const metadata = JSON.parse(execFileSync(process.env.FFPROBE_PATH, ['-v', 'error', '-count_frames', '-show_entries', 'stream=width,height,nb_read_frames,duration,r_frame_rate:format=duration:format_tags:frame=best_effort_timestamp_time,pkt_duration_time', '-of', 'json', filename], { encoding: 'utf8' }));
             const stream = metadata.streams[0]; assert.equal(stream.width, width); assert.equal(stream.height, height);
-            assert.equal(Number(stream.nb_read_frames), cycles * 10, JSON.stringify(stream));
+            if (live) assert.ok(Number(stream.nb_read_frames) >= cycles * 9, JSON.stringify(stream));
+            else assert.equal(Number(stream.nb_read_frames), cycles * 10, JSON.stringify(stream));
+            assert.equal(metadata.format.tags[extension === 'webm' ? 'MOVIE/SOURCE' : 'SOURCE'], 'cymatics.art');
             const first = metadata.frames[0], last = metadata.frames.at(-1);
             const duration = Number(stream.duration || metadata.format.duration || (Number(last.best_effort_timestamp_time) - Number(first.best_effort_timestamp_time) + Number(last.pkt_duration_time || .1)));
-            assert.ok(Math.abs(duration - cycles) < .002, `Unexpected duration: ${duration}`);
-            for (let i = 0; i < metadata.frames.length; i++) assert.ok(Math.abs(Number(metadata.frames[i].best_effort_timestamp_time) - i / 10) < .002, `Uneven timestamp at frame ${i}`);
+            assert.ok(Math.abs(duration - cycles) < (live ? .5 : .002), `Unexpected duration: ${duration}`);
+            for (let i = 0; !live && i < metadata.frames.length; i++) assert.ok(Math.abs(Number(metadata.frames[i].best_effort_timestamp_time) - i / 10) < .002, `Uneven timestamp at frame ${i}`);
             console.log(extension, stream);
         }
         if (process.env.FFMPEG_PATH) {
@@ -93,8 +103,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
             }
         }
         const phases = await page.evaluate(() => window.exportPhases);
-        assert.equal(phases.length, cycles * 10, 'Exactly one draw for each encoded frame');
-        for (let i = 0; i < phases.length; i++) {
+        if (!live) assert.equal(phases.length, cycles * 10, 'Exactly one draw for each encoded frame');
+        for (let i = 0; !live && i < phases.length; i++) {
             const next = phases[(i + 1) % phases.length];
             const delta = (next - phases[i] + 2 * Math.PI) % (2 * Math.PI);
             assert.ok(Math.abs(delta - 2 * Math.PI / 10) < 1e-8, `Uneven phase increment at frame ${i}`);
@@ -117,6 +127,14 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         await page.evaluate(() => { window.slowExport = 125; });
         await openVideo(); await page.locator('#videoCycles').fill('2'); assert.match(await page.locator('#videoSummary').textContent(), /WebM.*2.00 seconds/); await exportClip('webm', 2);
         console.log('PASS WebM fallback: exact frame count, uniform phase/timestamps and two cycles despite slow rendering');
+        for (const webm of [false, true]) {
+            const liveURL = new URL(url); liveURL.searchParams.set('liveVideo', '1');
+            if (webm) liveURL.searchParams.set('webmOnly', '1');
+            await page.goto(liveURL.href); await page.waitForFunction(() => document.getElementById('renderStatus').textContent.includes('reflected paths'));
+            baseline = await configSnapshot(); await openVideo();
+            await exportClip(webm || !supportsMP4 ? 'webm' : 'mp4', 1, 320, 180, null, true);
+        }
+        console.log('PASS source tags in MP4/WebM live-recording fallback, preserving decoded frames');
         const croppedURL = new URL(url); croppedURL.searchParams.set('config', JSON.stringify({ ...cfg, boundary: 'Circle', radius: 2, yHeight: 6, backgroundColor: '#123456' }));
         await page.goto(croppedURL.href); await page.waitForFunction(() => document.getElementById('renderStatus').textContent.includes('reflected paths'));
         baseline = await configSnapshot();

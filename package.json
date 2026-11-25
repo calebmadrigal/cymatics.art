@@ -24,7 +24,7 @@
     }
   },
   "name": "cymatics-art",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "description": "Digital cymatics with reflecting boundaries — a single-file web app",
   "scripts": {

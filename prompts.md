@@ -116,4 +116,8 @@ There is a small problem with the video save functionality - the loop is not qui
 Bump version to 1.1.0. Also add logic so that, when the download app button is pressed, the filename has a _1.1.0 suffix (which should change based on version number).
 
 
+## Prompt 13 (executed with ChatGPT Sol 6.1 High)
+
+Change the default setttings to 0 rotation for resonators or boundary, and set boundary settings to Binary Split, radius = 8, and set fuzzy level to 22. Also change the logic to not automatically turn off the max override. Bump to version 1.1.1
+
 

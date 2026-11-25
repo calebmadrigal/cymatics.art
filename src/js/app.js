@@ -30,7 +30,7 @@ function apply_config(candidate) {
     config.set(validated);
 }
 
-function update_config(patch, options) { apply_config(config_with_patch(config.get(), patch, options)); }
+function update_config(patch) { apply_config(config_with_patch(config.get(), patch)); }
 function set_switch(id, value) { $(id).setAttribute('aria-checked', String(value)); }
 
 for (const name of Object.keys(matplotlibColorData).sort((a, b) => a.localeCompare(b))) {
@@ -526,7 +526,7 @@ function animate(time) {
         if (count > 0) {
             elapsed -= count * 1000 / cfg.speed;
             const step = Math.round(cfg.phase / TAU * cfg.steps);
-            update_config({ phase: phase_at_step(step + count, cfg.steps) }, { animation: true });
+            update_config({ phase: phase_at_step(step + count, cfg.steps) });
         }
     } else elapsed = 0;
     previousTime = time; requestAnimationFrame(animate);
@@ -542,11 +542,5 @@ try {
 } catch (error) { toast(`Could not restore settings: ${error.message}`); }
 config.subscribe(sync_ui);
 new ResizeObserver(() => { if (scene) update_position_preview(config.get()); }).observe($('resonatorCanvas'));
-let previousViewSize = null;
-new ResizeObserver(([entry]) => {
-    const size = `${entry.contentRect.width}:${entry.contentRect.height}`;
-    if (previousViewSize !== null && size !== previousViewSize) update_config({ maxOverride: null });
-    previousViewSize = size;
-    request_render();
-}).observe($('mainView'));
+new ResizeObserver(request_render).observe($('mainView'));
 requestAnimationFrame(animate);

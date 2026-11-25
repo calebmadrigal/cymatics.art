@@ -1,6 +1,6 @@
 // Browser-local video export with frame-indexed phases and timestamps.
 import { TAU } from './cymatics.js';
-import { BufferTarget, CanvasSource, Mp4OutputFormat, WebMOutputFormat, Output, Quality, canEncodeVideo } from 'mediabunny';
+import { BufferTarget, CanvasSource, Mp4OutputFormat, WebMOutputFormat, Output, Quality, canEncodeVideo, Input, BlobSource, MP4, WEBM, EncodedPacketSink, EncodedVideoPacketSource } from 'mediabunny';
 
 export const VIDEO_FORMATS = [
     { mimeType: 'video/mp4', extension: 'mp4', label: 'MP4' },
@@ -69,13 +69,52 @@ export async function record_video(options) {
     const formats = await video_export_formats(options.plan);
     signal?.throwIfAborted();
     if (!formats.length) throw new Error('Video export is not available in this browser. PNG and JSON saving are still available.');
-    if (formats[0].live) return record_live_video(options);
+    if (formats[0].live) return tag_recorded_video(await record_live_video(options), signal);
     return encode_video_frames(options, formats[0]);
+}
+
+function video_output(target, format) {
+    const container = format.extension === 'mp4' ? new Mp4OutputFormat({ fastStart: 'in-memory', metadataFormat: 'mdta' }) : new WebMOutputFormat();
+    const output = new Output({ format: container, target });
+    output.setMetadataTags({ comment: 'Created with https://cymatics.art', raw: { SOURCE: 'cymatics.art' } });
+    return output;
+}
+
+// MediaRecorder cannot set tags. Copy its compressed packets into a tagged container.
+async function tag_recorded_video(result, signal) {
+    const input = new Input({ source: new BlobSource(result.blob), formats: [MP4, WEBM] });
+    let output, completed = false;
+    try {
+        signal?.throwIfAborted();
+        const track = await input.getPrimaryVideoTrack();
+        const codec = track && await track.getCodec();
+        if (!codec) throw new Error('The browser produced a video with an unsupported codec.');
+        const decoderConfig = await track.getDecoderConfig();
+        if (!decoderConfig) throw new Error('The browser did not include the video codec configuration.');
+        const target = new BufferTarget();
+        output = video_output(target, result.format);
+        const source = new EncodedVideoPacketSource(codec);
+        output.addVideoTrack(source);
+        await output.start();
+        let count = 0;
+        for await (const packet of new EncodedPacketSink(track).packets()) {
+            signal?.throwIfAborted();
+            await source.add(packet, { decoderConfig });
+            if (++count % 128 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        source.close();
+        await output.finalize(); signal?.throwIfAborted();
+        completed = true;
+        return { ...result, blob: new Blob([target.buffer], { type: result.format.mimeType }) };
+    } finally {
+        input.dispose();
+        if (output && !completed) await output.cancel().catch(() => {});
+    }
 }
 
 async function encode_video_frames({ canvas, plan, drawFrame, signal, onProgress = () => {}, onFormat = () => {} }, format) {
     const target = new BufferTarget();
-    const output = new Output({ format: format.extension === 'mp4' ? new Mp4OutputFormat({ fastStart: 'in-memory' }) : new WebMOutputFormat(), target });
+    const output = video_output(target, format);
     let cancelError, cancelPromise, bytes = 0, completed = false;
     function cancel(error) {
         if (cancelError) return;

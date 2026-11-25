@@ -9,6 +9,8 @@ test('Basic resonators use the required JSON schema and a uniform arrangement', 
     const cfg = default_config();
     assert.deepEqual(Object.keys(cfg.resonators_list[0]), ['x', 'y', 'amplitude', 'frequency', 'phase_multiplier', 'phase_offset', 'waveform']);
     assert.equal(cfg.phase_multiplier, -1);
+    assert.equal(cfg.resonatorRotationDegrees, 0); assert.equal(cfg.boundaryRotationDegrees, 0);
+    assert.equal(cfg.boundary, 'Binary Split'); assert.equal(cfg.radius, 8); assert.equal(cfg.fuzzyLevel, 22);
     for (const r of cfg.resonators_list) near(Math.hypot(r.x, r.y), cfg.distance);
     assert.deepEqual(generate_resonators({ ...cfg, numResonators: 1 })[0], { x: 0, y: 0, amplitude: 1, frequency: 2, phase_multiplier: -1, phase_offset: 0, waveform: 'sinc' });
 });
@@ -190,7 +192,7 @@ test('linked crop dimensions preserve aspect from either input', () => {
 });
 
 
-test('max override defaults to 1 and wave, geometry and view edits clear only the maximum', () => {
+test('max override defaults to 1 and persists through wave, geometry, phase and view edits', () => {
     const cfg = default_config();
     assert.equal(cfg.maxOverride, 1); assert.equal(cfg.minOverride, 0);
     for (const patch of [{ amplitude: 2 }, { frequency: 3 }, { boundary: 'Circle' }, { boundaryWidth: 9 },
@@ -198,7 +200,7 @@ test('max override defaults to 1 and wave, geometry and view edits clear only th
         { xCenter: 1 }, { yHeight: 12 }, { steps: 60 }, { phase: 1 },
         { resonators_list: cfg.resonators_list.map((r, i) => i ? r : { ...r, phase_offset: .5 }) }]) {
         const next = config_with_patch(cfg, patch);
-        assert.equal(next.maxOverride, null, JSON.stringify(patch));
+        assert.equal(next.maxOverride, 1, JSON.stringify(patch));
         assert.equal(next.minOverride, 0);
         validate_config(next);
     }
@@ -210,7 +212,9 @@ test('animation, playback, colors, and unchanged fields preserve the selected ma
         { fuzzyLevel: 20 }, { amplitude: cfg.amplitude }, { resonators_list: structuredClone(cfg.resonators_list) }]) {
         assert.equal(config_with_patch(cfg, patch).maxOverride, 8);
     }
-    assert.equal(config_with_patch(cfg, { phase: 1 }, { animation: true }).maxOverride, 8);
+    assert.equal(config_with_patch(cfg, { phase: 1 }).maxOverride, 8);
+    assert.equal(config_with_patch(cfg, { maxOverride: null }).maxOverride, null);
+    assert.equal(config_with_patch({ ...cfg, maxOverride: null }, { amplitude: 2 }).maxOverride, null);
     assert.equal(config_with_patch(cfg, { amplitude: 2, maxOverride: 4 }).maxOverride, 4);
     assert.equal(config_with_patch(cfg, { amplitude: 2 }).minOverride, 0);
 });

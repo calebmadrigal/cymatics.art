@@ -1,4 +1,4 @@
-// Optional Playwright checks for override invalidation and boundary exports.
+// Optional Playwright checks for override persistence and boundary exports.
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
@@ -31,7 +31,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     }
     try {
         await load();
-        const defaults = { numResonators:'2', distance:'1.5', frequency:'2', resonatorRotationDegrees:'90', boundary:'Binary Split', radius:'5', boundaryRotationDegrees:'90', colorMap:'gnuplot2', minOverride:'0' };
+        const defaults = { numResonators:'2', distance:'1.5', frequency:'2', resonatorRotationDegrees:'0', boundary:'Binary Split', radius:'8', boundaryRotationDegrees:'0', fuzzyLevel:'22', colorMap:'gnuplot2', minOverride:'0' };
         for (const [id,value] of Object.entries(defaults)) assert.equal(await page.locator('#'+id).inputValue(),value,id);
         assert.equal(await page.locator('#maxOverride').inputValue(),'1');
         await assertMin();
@@ -55,12 +55,14 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         cfg.resonators_list = generate_resonators({ ...cfg, waveform:'sine' }); cfg.waveform = 'sine';
         await load(cfg);
         await page.locator('#phase').fill('1.5707963267948966'); await page.locator('#phase').press('Tab');
-        assert.equal(await page.locator('#maxOverride').isDisabled(),true); await assertMin();
+        assert.equal(await page.locator('#maxOverride').isDisabled(),false); await assertMin();
+        assert.equal(await page.locator('#maxOverride').inputValue(),'1');
         await setMax(8);
         await page.locator('#colorMap').selectOption('viridis');
         assert.equal(await page.locator('#maxOverride').inputValue(),'8');
         await page.locator('#amplitude').fill('3'); await page.locator('#amplitude').press('Tab');
-        assert.equal(await page.locator('#maxOverride').isDisabled(),true); await assertMin();
+        assert.equal(await page.locator('#maxOverride').isDisabled(),false); await assertMin();
+        assert.equal(await page.locator('#maxOverride').inputValue(),'8');
         await setMax(8);
         await page.locator('#playPauseButton').click();
         await page.waitForTimeout(200);
@@ -68,15 +70,26 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         await page.locator('#speed').fill('20'); await page.locator('#speed').press('Tab');
         assert.equal(await page.locator('#maxOverride').inputValue(),'8');
         await page.locator('#steps').fill('8'); await page.locator('#steps').press('Tab');
-        assert.equal(await page.locator('#maxOverride').isDisabled(),true); await assertMin();
+        assert.equal(await page.locator('#maxOverride').isDisabled(),false); await assertMin();
+        assert.equal(await page.locator('#maxOverride').inputValue(),'8');
         await setMax(8);
         await page.locator('#zoomInButton').click();
-        assert.equal(await page.locator('#maxOverride').isDisabled(),true); await assertMin();
+        assert.equal(await page.locator('#maxOverride').isDisabled(),false); await assertMin();
+        assert.equal(await page.locator('#maxOverride').inputValue(),'8');
         await setMax(8);
         await page.setViewportSize({width:1000,height:800});
-        await page.waitForFunction(()=>document.getElementById('maxOverride').disabled);
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        assert.equal(await page.locator('#maxOverride').isDisabled(),false);
+        assert.equal(await page.locator('#maxOverride').inputValue(),'8');
         await assertMin();
-        console.log('PASS default max survives animation; wave, phase, step, view and resize edits clear max while min remains enabled');
+        await page.locator('#hideControlPanelButton').click();
+        await page.locator('#openControlPanelButton').click();
+        assert.equal(await page.locator('#maxOverride').isDisabled(),false);
+        assert.equal(await page.locator('#maxOverride').inputValue(),'8');
+        await page.locator('#maxOverrideToggle').click();
+        await page.locator('#amplitude').fill('4'); await page.locator('#amplitude').press('Tab');
+        assert.equal(await page.locator('#maxOverride').isDisabled(),true);
+        console.log('PASS selected max survives wave, phase, step, view, resize and sidebar changes; manual disable stays disabled');
 
         await page.setViewportSize({width:1100,height:800});
         const rectangle={...cfg,boundary:'Rectangle',boundaryWidth:4,boundaryHeight:2,boundaryRotationDegrees:0,rotationDegrees:0,yHeight:6,maxOverride:2,phase:Math.PI/2};
