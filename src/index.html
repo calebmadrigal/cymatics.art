@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Digital cymatics with resonating waves, reflecting boundaries, and beautiful color maps. A self-contained offline web app.">
+    <meta name="theme-color" content="#1f2937">
+    <title>Cymatics.art</title>
+    <link rel="icon" type="image/png" href="data:image/png;base64,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">
+    <style>@import "./input.css";</style>
+    <style>
+        :root { font-family: ui-sans-serif, system-ui, sans-serif; color: #1f2937; background: #0e1116; font-size: 16px; }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
+        button, input, select, textarea { font: inherit; }
+        button { cursor: pointer; }
+        button:disabled { opacity: .4; cursor: default; }
+        button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+        button, input, select, textarea { border-radius: 5px; }
+        [hidden] { display: none !important; }
+        header { position: fixed; height: 64px; top: 0; width: 100%; z-index: 20; background: #1f2937; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 0 16px 0 10px; }
+        .brand-group { display: flex; align-items: center; gap: 12px; }
+        .logo { font-family: 'Arial Black', Arial, sans-serif; font-size: 32px; font-weight: 900; letter-spacing: -1.3px; color: #fff; text-shadow: 0 0 5px #ffffffb0; line-height: 1; white-space: nowrap; }
+        header button { color: #e5e7eb; border: 0; background: none; display: flex; align-items: center; gap: 8px; padding: 12px; font-size: 16px; }
+        header button:hover { background: #374151; }
+        header svg { width: 21px; height: 21px; }
+        nav { display: flex; gap: 14px; }
+        #mobileMenuButton { display: none; }
+        #controlPanel { position: fixed; left: 0; top: 64px; bottom: 0; width: 272px; z-index: 10; background: #d1d5db; display: flex; flex-direction: column; }
+        .panel-top { background: #9ca3af; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 8px; min-height: 46px; }
+        .panel-top > button { padding: 2px 7px; background: transparent; color: white; border: 0; font-size: 22px; }
+        .mode { display: flex; align-items: center; gap: 12px; margin-right: 8px; font-size: 14px; }
+        .switch { width: 48px; height: 24px; background: #d1d5db; border: 1px solid #6b728080; border-radius: 0; padding: 3px; flex-shrink: 0; }
+        .switch span { display: block; width: 16px; height: 16px; background: #f9fafb; box-shadow: 0 1px 3px #0003; transition: transform .15s; }
+        .switch[aria-checked="true"] { background: #1f2937; }
+        .switch[aria-checked="true"] span { transform: translateX(24px); }
+        .sidebar-content { padding: 16px; overflow-y: auto; overscroll-behavior: contain; flex: 1; scrollbar-width: thin; }
+        section { margin-bottom: 30px; }
+        h2 { font-size: 18px; font-weight: 600; color: #111827; padding: 0 0 8px; margin: 0 0 16px; border-bottom: 2px solid #e5e7eb; }
+        .field { display: block; font-size: 14px; font-weight: 500; color: #374151; margin: 12px 0; }
+        input[type=number], input[type=text], select, textarea { display: block; width: 100%; padding: 8px 10px; margin-top: 5px; color: #1f2937; background: white; border: 1px solid #bfc5cf; box-shadow: 0 1px 2px #0001; min-height: 38px; }
+        input[type=number] { appearance: textfield; -moz-appearance: textfield; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        select { appearance: none; padding-right: 28px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%239ca3af' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6' stroke-width='2'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+        input[type=color] { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 3px; border: 1px solid #bfc5cf; background: white; cursor: pointer; }
+        .range-field output { float: right; font-variant-numeric: tabular-nums; color: #6b7280; font-weight: 400; }
+        input[type=range] { appearance: none; width: 100%; height: 6px; display: block; margin-top: 14px; margin-bottom: 18px; background: #e5e7eb; padding: 0; border: 0; border-radius: 4px; }
+        input[type=range]::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; background: #1f2937; border: 0; border-radius: 0; cursor: pointer; }
+        input[type=range]::-moz-range-thumb { width: 16px; height: 16px; background: #1f2937; border: 0; border-radius: 0; cursor: pointer; }
+        .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 16px 0; font-size: 14px; font-weight: 500; }
+        .row { display: flex; align-items: center; gap: 10px; }
+        .row > .field { flex: 1; min-width: 0; }
+        .radio-row { display: flex; gap: 20px; font-size: 14px; }
+        .radio-row label { display: flex; align-items: center; gap: 6px; }
+        input[type=radio] { accent-color: #1f2937; }
+        #resonatorCanvas { display: block; background: #f3f4f6; border: 1px solid #bfc5cf; width: 100%; aspect-ratio: 1.4; border-radius: 5px; }
+        .hint { font-size: 12px; color: #6b7280; margin: 7px 0; line-height: 1.5; }
+        .button-row { display: flex; gap: 6px; margin-top: 10px; }
+        .button-row button { flex: 1; }
+        .button, .button-row button { padding: 8px 12px; background: #f9fafb; color: #374151; border: 1px solid #bfc5cf; font-size: 14px; }
+        .button:hover, .button-row button:hover { background: #e5e7eb; }
+        .primary { background: #1f2937 !important; color: white !important; border-color: #1f2937 !important; }
+        .primary:hover { background: #374151 !important; }
+        #resonatorsList { display: block; min-height: 140px; background: #f9fafb; padding: 6px; font-family: ui-monospace, monospace; font-size: 13px; background-image: none; }
+        #resonatorsList option { padding: 7px 4px; white-space: nowrap; }
+        .override { display: flex; align-items: center; gap: 8px; }
+        .override input { flex: 1; min-width: 0; }
+        .override .switch { width: 36px; height: 22px; padding: 3px; }
+        .override .switch span { width: 14px; height: 14px; }
+        .override .switch[aria-checked=true] span { transform: translateX(14px); }
+        #colorPreview { width: 100%; height: 10px; border-radius: 3px; margin-top: 10px; }
+        footer { font-size: 12px; text-align: center; padding: 0 0 12px; color: #6b7280; }
+        footer a { color: inherit; text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+        main { position: fixed; top: 64px; bottom: 0; left: 272px; right: 0; }
+        body.sidebar-hidden main { left: 0; }
+        body.sidebar-hidden #controlPanel { display: none; }
+        #mainCanvas { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; cursor: grab; }
+        #mainCanvas:active { cursor: grabbing; }
+        .view-buttons { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; }
+        .view-buttons button, #openControlPanelButton { display: grid; place-items: center; color: white; background: #1f2937d9; border: 0; width: 34px; height: 34px; font-size: 24px; box-shadow: 0 2px 8px #0003; }
+        .view-buttons button:hover { background: #374151; }
+        .view-buttons svg { width: 20px; height: 20px; }
+        #openControlPanelButton { display: none; position: absolute; left: 0; top: 50%; width: 24px; height: 48px; border-radius: 0 5px 5px 0; }
+        body.sidebar-hidden #openControlPanelButton { display: grid; }
+        #coordinates { position: absolute; left: 10px; top: 10px; font: 12px ui-monospace, monospace; color: #fff; background: #0008; padding: 5px 8px; border-radius: 4px; pointer-events: none; }
+        #renderStatus { position: absolute; bottom: 12px; right: 14px; color: #ffffff8c; font: 12px ui-monospace, monospace; pointer-events: none; }
+        #errorBanner { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 120px); border: 1px solid #fca5a5; border-radius: 6px; background: #fef2f2; color: #991b1b; font-size: 14px; padding: 12px 18px; z-index: 5; }
+        #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1f2937; border: 1px solid #4b5563; color: white; padding: 10px 18px; border-radius: 6px; z-index: 50; font-size: 14px; }
+        dialog { width: min(540px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); padding: 0; margin: auto; color: #1f2937; background: #f9fafb; border: 0; border-radius: 9px; box-shadow: 0 20px 50px #0005; }
+        dialog::backdrop { background: #0008; }
+        .modal-heading { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 0; }
+        .modal-heading h2 { border: 0; font-size: 21px; margin: 0; padding: 0; }
+        .close-modal { background: none; border: 0; font-size: 26px; color: #6b7280; padding: 0 4px; }
+        .modal-body { padding: 16px 24px 24px; font-size: 14px; line-height: 1.65; }
+        .modal-body p { margin: 0 0 12px; }
+        .modal-body h3 { font-weight: 600; margin: 20px 0 8px; }
+        .modal-body code { background: #e5e7eb; font: 12px ui-monospace, monospace; padding: 2px 4px; border-radius: 3px; overflow-wrap: anywhere; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+        .form-error { color: #b91c1c; min-height: 1.4em; font-size: 13px; }
+        #shareURL { min-height: 105px; resize: vertical; font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
+        #dropZone { display: block; padding: 28px 16px; text-align: center; border: 2px dashed #9ca3af; border-radius: 6px; margin: 18px 0; cursor: pointer; }
+        #dropZone.drag-over { border-color: #3b82f6; background: #eff6ff; }
+        @media (max-width: 767px) {
+            header { padding-right: 6px; }
+            .logo { font-size: 26px; }
+            .brand-group { gap: 3px; }
+            header button { padding: 10px; }
+            nav { display: none; position: absolute; top: 64px; right: 0; width: 142px; padding: 8px; background: #1f2937; border-radius: 0 0 0 6px; box-shadow: 0 6px 18px #0003; }
+            nav.menu-open { display: flex; flex-direction: column; gap: 0; }
+            nav button { justify-content: space-between; }
+            #mobileMenuButton { display: block; font-size: 24px; }
+            #controlPanel { width: 100%; top: auto; bottom: 0; height: 40dvh; }
+            .panel-top { min-height: 42px; }
+            .sidebar-content { display: block; }
+            #resonatorCanvas { max-height: 180px; }
+            main { left: 0; bottom: 40dvh; }
+            body.sidebar-hidden main { bottom: 0; }
+            #errorBanner { max-width: calc(100% - 72px); left: 10px; transform: none; }
+            .row { gap: 12px; }
+        }
+        @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand-group"><h1 class="logo">Cymatics.art</h1>
+            <button id="downloadAppButton" title="Download offline copy of Cymatics.art" aria-label="Download offline copy">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+            </button>
+        </div>
+        <nav id="navigation" aria-label="Main navigation"><button id="showShareButton" data-action="share" title="Share"><span>Share</span><svg class="w-5 h-5" fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+                            <path style="fill: none; stroke: rgb(255, 255, 255); stroke-linecap: round; stroke-width: 40px;" d="M 71.335 351.263 C 71.335 351.263 220.824 546.123 425.655 354.919"/>
+                            <path style="fill: none; stroke: rgb(255, 255, 255); stroke-linecap: round; stroke-width: 40px;" d="M 244.441 337.303 L 247.495 57.542"/>
+                            <path style="fill: none; stroke: rgb(255, 255, 255); stroke-linecap: round; stroke-width: 40px;" d="M 245.927 57.667 C 245.927 57.667 233.676 153.919 163.023 157.325"/>
+                            <path style="fill: none; stroke: rgb(255, 255, 255); stroke-linecap: round; transform-box: fill-box; transform-origin: 50% 50%; stroke-width: 40px;" d="M 324.455 177.087 C 324.455 177.087 314.941 85.607 244.288 82.201" transform="matrix(-1, 0, 0, -1, 4.432068, -20.892017)"/>
+                        </svg></button><button id="showSaveButton" data-action="save" title="Save"><span>Save</span><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                        </svg></button><button id="showOpenButton" data-action="open" title="Open"><span>Open</span><svg width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 6H12L10 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V8C22 6.9 21.1 6 20 6ZM20 18H4V6H9.17L11.17 8H20V18Z" fill="currentColor"/>
+                        </svg></button><button id="showHelpButton" data-action="help" title="Help"><span>Help</span><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M12 21a9 9 0 110-18 9 9 0 010 18z" />
+                        </svg></button></nav>
+        <button id="mobileMenuButton" aria-label="Toggle menu" aria-expanded="false">☰</button>
+    </header>
+    <aside id="controlPanel" aria-label="Cymatics controls">
+        <div class="panel-top"><button id="hideControlPanelButton" title="Hide controls" aria-label="Hide controls">‹</button>
+            <div class="mode"><span id="modeLabel">Basic</span><button id="modeToggle" class="switch" role="switch" aria-checked="false" aria-label="Advanced mode"><span></span></button></div>
+        </div>
+        <div class="sidebar-content">
+            <section aria-labelledby="resonatorsHeading"><h2 id="resonatorsHeading">Resonators</h2>
+                <canvas id="resonatorCanvas" width="480" height="340" aria-label="Resonator positions and boundary"></canvas>
+                <p class="hint" id="resonatorCaption">Resonator positions · centered at (0, 0)</p>
+                <div id="basicResonators"><label class="field">Number of resonators<input id="numResonators" data-config="numResonators" type="number" step="1" value="" min="1" max="32" ></label><label class="field">Distance from Center<input id="distance" data-config="distance" type="number" step="any" value="" min="0" max="10000" ></label><label class="field">Amplitude<input id="amplitude" data-config="amplitude" type="number" step="any" value="" min="-10000" max="10000" ></label><label class="field">Frequency<input id="frequency" data-config="frequency" type="number" step="any" value="" min="0" max="10000" ></label><label class="field">Phase Multiplier<input id="phase_multiplier" data-config="phase_multiplier" type="number" step="any" value="" min="-1000" max="1000" ></label></div>
+                <div id="advancedResonators" hidden>
+                    <label class="field" for="resonatorsList">Resonators list</label>
+                    <select id="resonatorsList" size="5" aria-label="Resonators list"></select>
+                    <div class="button-row"><button id="addResonatorButton">Add</button><button id="editResonatorButton">Edit</button><button id="removeResonatorButton">Remove</button></div>
+                    <p class="hint">Select a resonator to edit its position and wave.</p>
+                </div>
+                <label class="field">Combine operator<select id="combineOperator" data-config="combineOperator"><option>+</option><option>-</option><option>*</option><option>/</option></select></label>
+                <label class="field" id="basicWaveform">Waveform<select id="waveform" data-config="waveform"><option>sinc</option><option>sine</option><option>square</option><option>sawtooth</option><option>triangle</option></select></label>
+                <label class="field">Rotation (degrees)<input id="resonatorRotationDegrees" data-config="resonatorRotationDegrees" type="number" step="any" min="-36000" max="36000"></label>
+            </section>
+            <section aria-labelledby="boundaryHeading"><h2 id="boundaryHeading">Boundary</h2>
+                <label class="field">Shape<select id="boundary" data-config="boundary"><option>None</option><option>Circle</option><option>Binary Split</option><option>Triangle</option><option>Square</option><option>Pentagon</option><option>Hexagon</option><option>Septagon</option><option>Octagon</option><option>9-sides</option><option>10-sides</option><option>11-sides</option><option>12-sides</option><option>Custom</option></select></label>
+                <div id="customSides" hidden><label class="field">Number of sides<input id="sides" data-config="sides" type="number" step="1" value="" min="3" max="128" ></label></div>
+                <label class="field">Radius<input id="radius" data-config="radius" type="number" step="any" value="" min="0.001" max="10000" ></label>
+                <label class="field">Rotation (degrees)<input id="boundaryRotationDegrees" data-config="boundaryRotationDegrees" type="number" step="any" min="-36000" max="36000"></label>
+                <p class="hint" id="boundaryHint"></p>
+            </section>
+            <section aria-labelledby="phaseHeading"><h2 id="phaseHeading">Phase</h2>
+                <div class="radio-row"><label><input type="radio" name="phaseMode" value="fixed"> Fixed</label><label><input type="radio" name="phaseMode" value="animated" checked> Animated</label></div>
+                <div id="fixedPhase" hidden><label class="field">Phase (radians)<input id="phase" data-config="phase" type="number" step="any" value="" min="0" max="6.283185307179586" ></label></div>
+                <div id="animatedPhase"><label class="field">Steps<input id="steps" data-config="steps" type="number" step="1" value="" min="1" max="10000" ></label><label class="field">Speed (steps / second)<input id="speed" data-config="speed" type="number" step="any" value="" min="0.1" max="120" ></label><p class="hint">Speed is steps per second. <output id="currentPhase"></output></p></div>
+            </section>
+            <section aria-labelledby="viewHeading"><h2 id="viewHeading">View Controls</h2>
+                <label class="field range-field">Fuzzy Level<output id="fuzzyLevelDisplay"></output><input id="fuzzyLevel" data-config="fuzzyLevel" type="range" min="0" max="100" step="1"></label>
+                <label class="field">Min Override <span class="hint">(min: <output id="minDisplay">0</output>)</span><div class="override"><input id="minOverride" type="number" step="any" min="0" aria-label="Min Override" disabled><button id="minOverrideToggle" class="switch" role="switch" aria-label="Enable Min Override" aria-checked="false"><span></span></button></div></label>
+                <label class="field">Max Override <span class="hint">(max: <output id="maxDisplay">0</output>)</span><div class="override"><input id="maxOverride" type="number" step="any" min="0" aria-label="Max Override" disabled><button id="maxOverrideToggle" class="switch" role="switch" aria-label="Enable Max Override" aria-checked="false"><span></span></button></div></label>
+                <label class="field">Rotation (degrees)<input id="rotationDegrees" data-config="rotationDegrees" type="number" step="any" value="" min="-36000" max="36000" ></label>
+            </section>
+            <section aria-labelledby="colorHeading"><h2 id="colorHeading">Color</h2>
+                <label class="field">Color map<select id="colorMap" data-config="colorMap"></select></label><canvas id="colorPreview" width="256" height="10" aria-label="Color map preview"></canvas>
+                <div class="switch-row"><span id="reverseColorLabel">Reverse Color</span><button id="reverseColor" data-switch="reverseColor" class="switch" type="button" role="switch" aria-checked="false" aria-labelledby="reverseColorLabel"><span></span></button></div><div class="switch-row"><span id="invertColorLabel">Invert Color</span><button id="invertColor" data-switch="invertColor" class="switch" type="button" role="switch" aria-checked="false" aria-labelledby="invertColorLabel"><span></span></button></div><label class="field range-field">Color Start<output id="colorStartDisplay"></output><input id="colorStart" data-config="colorStart" type="range" min="0" max="255" step="1"></label><label class="field">Color Cycles<input id="colorCycles" data-config="colorCycles" type="number" step="any" value="" min="0.01" max="100" ></label><label class="field range-field">Hue Shift<output id="hueShiftDegreesDisplay"></output><input id="hueShiftDegrees" data-config="hueShiftDegrees" type="range" min="-360" max="360" step="1"></label><label class="field range-field">Saturation<output id="saturationPercentDisplay"></output><input id="saturationPercent" data-config="saturationPercent" type="range" min="-100" max="100" step="1"></label><label class="field range-field">Luminosity<output id="luminosityPercentDisplay"></output><input id="luminosityPercent" data-config="luminosityPercent" type="range" min="-100" max="100" step="1"></label>
+                <label class="field">Background Color<input id="backgroundColor" data-config="backgroundColor" type="color" value="#0e1116"></label>
+            </section>
+            <footer>≈ Built by <a href="https://gods.art" target="_blank" rel="noopener">Caleb Madrigal</a> ≈</footer>
+        </div>
+    </aside>
+    <main id="mainView">
+        <canvas id="mainCanvas" aria-label="Digital cymatics wave interference visualization"></canvas>
+        <div class="view-buttons" aria-label="View controls">
+            <button id="playPauseButton" aria-label="Pause" title="Pause" aria-pressed="true"><svg id="pauseIcon" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></svg><svg id="playIcon" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="m7 4 14 8-14 8z"/></svg></button>
+            <button id="zoomInButton" aria-label="Zoom in" title="Zoom in">+</button><button id="zoomOutButton" aria-label="Zoom out" title="Zoom out">−</button>
+            <button id="homeButton" aria-label="Reset view" title="Reset view"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></svg></button>
+            <button id="gotoButton" aria-label="Go to coordinates" title="Go to coordinates"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke-width="2"/><circle cx="12" cy="12" r="3"/><path d="M12 1v5m0 12v5M1 12h5m12 0h5" stroke-width="2"/></svg></button>
+        </div>
+        <button id="openControlPanelButton" aria-label="Show controls" title="Show controls">›</button>
+        <output id="coordinates" hidden></output><output id="renderStatus"></output><div id="errorBanner" role="alert" hidden></div>
+    </main>
+    <div id="toast" role="status" hidden></div>
+    <dialog id="resonatorModal" aria-labelledby="resonatorModalTitle"><div class="modal-heading"><h2 id="resonatorModalTitle">Add resonator</h2><button class="close-modal" aria-label="Close">×</button></div>
+        <form id="resonatorForm" class="modal-body"><div class="row"><label class="field">X<input id="edit_x" data-editor="edit_x" type="number" step="any" value="" min="-1000000.0" max="1000000.0" ></label><label class="field">Y<input id="edit_y" data-editor="edit_y" type="number" step="any" value="" min="-1000000.0" max="1000000.0" ></label></div><label class="field">Amplitude<input id="edit_amplitude" data-editor="edit_amplitude" type="number" step="any" value="" min="-10000" max="10000" ></label><label class="field">Frequency<input id="edit_frequency" data-editor="edit_frequency" type="number" step="any" value="" min="0" max="10000" ></label><label class="field">Phase Multiplier<input id="edit_phase_multiplier" data-editor="edit_phase_multiplier" type="number" step="any" value="" min="-1000" max="1000" ></label><label class="field">Phase Offset (radians)<input id="edit_phase_offset" data-editor="edit_phase_offset" type="number" step="any" value="" min="0" max="6.283185307179586" ></label><label class="field">Waveform<select id="edit_waveform"><option>sinc</option><option>sine</option><option>square</option><option>sawtooth</option><option>triangle</option></select></label>
+            <p class="hint">Phase = global phase × Phase Multiplier + Phase Offset.</p><p id="resonatorError" class="form-error" role="alert"></p>
+            <div class="modal-actions"><button type="button" class="button" data-close>Cancel</button><button class="button primary" type="submit">Apply</button></div>
+        </form>
+    </dialog>
+    <dialog id="shareModal" aria-labelledby="shareTitle"><div class="modal-heading"><h2 id="shareTitle">Share</h2><button class="close-modal" aria-label="Close">×</button></div><div class="modal-body"><p>This link includes your resonators, boundary, phase, colors, and view.</p><label class="field">Shareable link<textarea id="shareURL" readonly spellcheck="false"></textarea></label><p class="hint">Opens at cymatics.app. Settings stay in the link; no account is needed.</p><div class="modal-actions"><button id="copyShareButton" class="button primary">Copy link</button></div></div></dialog>
+    <dialog id="saveModal" aria-labelledby="saveTitle"><div class="modal-heading"><h2 id="saveTitle">Save</h2><button class="close-modal" aria-label="Close">×</button></div><form id="saveForm" class="modal-body"><p>Save a PNG with the complete configuration embedded. Open the image later to restore this pattern.</p><div class="row"><label class="field">Width (px)<input id="saveWidth" data-export="saveWidth" type="number" step="1" value="" min="64" max="4096" required></label><label class="field">Height (px)<input id="saveHeight" data-export="saveHeight" type="number" step="1" value="" min="64" max="4096" required></label></div><label class="field">Filename<input id="saveFilename" type="text" value="Cymatics.art.png" required></label><p class="hint">Exports the current view at the selected size. Animation is captured at its current phase.</p><p id="saveError" class="form-error" role="alert"></p><div class="modal-actions"><button id="saveJsonButton" type="button" class="button">Save JSON</button><button id="saveImageButton" class="button primary" type="submit">Save image</button></div></form></dialog>
+    <dialog id="openModal" aria-labelledby="openTitle"><div class="modal-heading"><h2 id="openTitle">Open</h2><button class="close-modal" aria-label="Close">×</button></div><div class="modal-body"><p>Restore a PNG saved by Cymatics.art or a Cymatics.art JSON configuration.</p><label id="dropZone">Choose a file or drop it here<input id="openFileInput" type="file" accept="image/png,.png,application/json,.json" hidden></label><p id="openError" class="form-error" role="alert"></p></div></dialog>
+    <dialog id="gotoModal" aria-labelledby="gotoTitle"><div class="modal-heading"><h2 id="gotoTitle">Go to coordinates</h2><button class="close-modal" aria-label="Close">×</button></div><form id="gotoForm" class="modal-body"><div class="row"><label class="field">Center X<input id="gotoX" data-view="gotoX" type="number" step="any" value="" min="-1000000.0" max="1000000.0" required></label><label class="field">Center Y<input id="gotoY" data-view="gotoY" type="number" step="any" value="" min="-1000000.0" max="1000000.0" required></label></div><label class="field">View height (graph units)<input id="gotoHeight" data-view="gotoHeight" type="number" step="any" value="" min="0.0001" max="100000" required></label><p id="gotoError" class="form-error" role="alert"></p><div class="modal-actions"><button class="button primary" type="submit">Go</button></div></form></dialog>
+    <dialog id="helpModal" aria-labelledby="helpTitle"><div class="modal-heading"><h2 id="helpTitle">Cymatics.art</h2><button class="close-modal" aria-label="Close">×</button></div><div class="modal-body">
+        <p>A digital cymatics playground inspired by FuzzyGraph. Arrange resonators, choose a reflecting boundary, and explore their interference.</p>
+        <h3>Resonators</h3><p>Basic mode distributes sources evenly around the center (a single source sits at the origin). Advanced mode lets you add, edit, and remove individual sources with their own X/Y, amplitude, frequency, phase multiplier, phase offset, and waveform. The <code>resonators_list</code> stores these settings. Resonator Rotation rotates the entire layout around the origin in both modes; Advanced X/Y values remain the coordinates before that rotation. Switching modes preserves your sources; changing a Basic resonator control regenerates a uniform arrangement.</p>
+        <p>Frequency is cycles per graph unit. The phase of each wave is <code>phase × phase_multiplier + phase_offset</code>. Sinc uses FuzzyGraph’s radial sine divided by radial distance, with a finite core at the source. The other waveforms have constant amplitude.</p>
+        <h3>Boundaries and reflections</h3><p>Boundary radius is the distance from the center to each vertex. Boundary Rotation rotates the walls around the origin independently of the resonators and view. Waves reflect specularly at the walls and interfere with the direct waves using the same combine operator. The field is clipped outside the boundary. None shows unbounded waves.</p>
+        <p>Named polygons use paths with up to two reflections. Circle uses a 64-sided approximation with one reflection; custom polygons above 12 sides also use one reflection. This finite image-source model is an artistic wave model, not an exact vibrating-plate or infinite-reverberation solver.</p>
+        <p>Binary Split means two parallel, infinite walls at <code>x = −radius</code> and <code>x = +radius</code>. Each reflection preserves amplitude and phase. Sources outside a boundary are marked in red in the position preview; move them inside for an enclosed-source pattern.</p>
+        <p>Operators fold left in list order: each direct wave, then its valid reflections. Subtraction, multiplication, and division apply to reflected contributions too. Near-zero divisors are bounded to keep rendering finite.</p>
+        <h3>Phase and view</h3><p>The app starts playing. The canvas Pause button selects Fixed phase; Play selects Animated phase. The button and sidebar radio buttons stay synchronized.</p><p>Animated phase visits <code>2π × k / steps</code>, for k from 0 to steps − 1, at the selected number of steps per second. It wraps without duplicating 0 and 2π. Fixed phase accepts radians from 0 to 2π. Animation pauses while a dialog is open or the tab is hidden.</p>
+        <p>Drag to pan. Scroll or pinch to zoom. + and − zoom around the center; Home fits the boundary, and Go to sets an exact center and view height. Rotation is in degrees. Fuzzy Level uses the same power transfer as FuzzyGraph; zero highlights near-zero wave values. The displayed min/max are sampled magnitudes, with optional overrides for stable animation contrast.</p>
+        <h3>Color and files</h3><p>Background Color sets the area outside the boundary, including saved images. The color maps and color adjustments come from FuzzyGraph. Color Start is an offset in color-map entries; Color Cycles repeats the map. Hue Shift is in degrees; Saturation and Luminosity are percentage adjustments.</p>
+        <p>Save exports PNG with embedded settings, or JSON. Open restores either file. Share makes a link for <code>https://cymatics.app</code>. Download saves this entire app as one HTML file that works offline, including your current pattern. No sign-ups or tracking.</p>
+        <p class="hint">Built by Caleb Madrigal · GLSL / WebGL 2 · v1.0.0</p>
+    </div></dialog>
+    <script id="savedConfig" type="application/json">null</script>
+    <script>window.process = { env: { NODE_ENV: "production" } };</script>
+    <script type="module">
+        import './js/app.js';
+    </script>
+</body>
+</html>
