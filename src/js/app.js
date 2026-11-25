@@ -36,7 +36,16 @@ for (const name of Object.keys(matplotlibColorData).sort((a, b) => a.localeCompa
 
 function update_position_preview(cfg) {
     const preview = $('resonatorCanvas'), ctx = preview.getContext('2d');
-    const { width: w, height: h } = preview;
+    const bounds = preview.getBoundingClientRect();
+    const cssWidth = bounds.width - 2 * preview.clientLeft, cssHeight = bounds.height - 2 * preview.clientTop;
+    if (cssWidth <= 0 || cssHeight <= 0) return;
+    const density = Math.min(window.devicePixelRatio || 1, 2);
+    const width = Math.max(1, Math.round(cssWidth * density)), height = Math.max(1, Math.round(cssHeight * density));
+    if (preview.width !== width || preview.height !== height) { preview.width = width; preview.height = height; }
+    // Preserve the original drawing scale, with equal graph-unit sizes on screen.
+    const displayScale = Math.min(cssWidth / 480, cssHeight / 340);
+    const w = cssWidth / displayScale, h = cssHeight / displayScale;
+    ctx.setTransform(preview.width / w, 0, 0, preview.height / h, 0, 0);
     const extent = Math.max(cfg.boundary === 'Rectangle' ? Math.hypot(cfg.boundaryWidth, cfg.boundaryHeight) / 2 : cfg.boundary === 'None' ? 0 : cfg.radius, ...cfg.resonators_list.map(r => Math.hypot(r.x, r.y)), 1) * 1.2;
     const scale = Math.min(w, h) / (2 * extent);
     const xy = p => [w / 2 + p.x * scale, h / 2 - p.y * scale];
@@ -419,6 +428,7 @@ try {
     if (candidate) apply_config(candidate);
 } catch (error) { toast(`Could not restore settings: ${error.message}`); }
 config.subscribe(sync_ui);
+new ResizeObserver(() => { if (scene) update_position_preview(config.get()); }).observe($('resonatorCanvas'));
 let previousViewSize = null;
 new ResizeObserver(([entry]) => {
     const size = `${entry.contentRect.width}:${entry.contentRect.height}`;

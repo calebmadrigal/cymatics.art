@@ -95,3 +95,9 @@ In mobile mode, make it where the sidebar goes down instead of to the left, and 
 
 Use images/favicon.png as the new favicon, and create the right sizes and update all favicon images to use this image as the basis. Also add a link to the "Cymatics.art" title text (but don't change title color). Also, there is a bug where, on modals, when selecting text in a text box, if the mouse goes off the modal, the modal prematurely closes; fix that.
 
+
+## Prompt 9 (executed with ChatGPT Sol 6.1 High)
+
+Fix bug where, in mobile mode, the resonator display aspect ratio looks off (so that a square boundary looks rectangular).
+
+
