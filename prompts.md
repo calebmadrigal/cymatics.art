@@ -121,3 +121,13 @@ Bump version to 1.1.0. Also add logic so that, when the download app button is p
 Change the default setttings to 0 rotation for resonators or boundary, and set boundary settings to Binary Split, radius = 8, and set fuzzy level to 22. Also change the logic to not automatically turn off the max override. Bump to version 1.1.1
 
 
+## Prompt 14 (executed with ChatGPT Sol 6.1 High)
+
+Under the crop to boundary save option, add a margin option that defaults to 0, and is the number of pixels of margin around the boundary shape to use for the video. Also, for the rectangle boundary, move the width and height text inputs above the rotation text input. Bump to version 1.1.2.
+
+
+## Prompt 15 (executed with ChatGPT Sol 6.1 High)
+
+Add the margin field in the Save dialog to also work with image saving.
+
+

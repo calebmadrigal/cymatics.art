@@ -272,15 +272,29 @@ export function boundary_fully_visible(cfg, width, height, bounds = boundary_vie
         bounds.minY >= center.y - halfHeight - epsilon && bounds.maxY <= center.y + halfHeight + epsilon;
 }
 
-export function crop_view_config(cfg, bounds, width, height) {
+export function crop_view_config(cfg, bounds, width, height, margin = 0) {
+    number(margin, 'Crop margin', 0, 2047, true);
+    const innerWidth = width - 2 * margin, innerHeight = height - 2 * margin;
+    if (innerWidth <= 0 || innerHeight <= 0) throw new Error('Margin must leave room for the boundary inside the output width and height.');
     const center = rotate_point({ x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 }, cfg.rotationDegrees);
-    // Accommodate rounding to integer image dimensions without cutting off an edge.
-    return { ...cfg, xCenter: center.x, yCenter: center.y, yHeight: Math.max(bounds.height, bounds.width * height / width) };
+    // Fit within the inner rectangle; the remaining output pixels are background margin.
+    return { ...cfg, xCenter: center.x, yCenter: center.y, yHeight: height * Math.max(bounds.height / innerHeight, bounds.width / innerWidth) };
 }
 
-export function linked_dimensions(value, aspect, changed = 'width') {
-    let width = changed === 'width' ? value : value * aspect;
-    let height = changed === 'height' ? value : value / aspect;
-    const factor = Math.min(1, 4096 / width, 4096 / height, Math.sqrt(12000000 / (width * height)));
-    return { width: Math.max(1, Math.round(width * factor)), height: Math.max(1, Math.round(height * factor)) };
+export function linked_dimensions(value, aspect, changed = 'width', margin = 0) {
+    number(margin, 'Crop margin', 0, 2047, true);
+    const padding = 2 * margin, inner = value - padding;
+    if (inner <= 0) throw new Error('Margin must leave room for the boundary inside the output width and height.');
+    const width = changed === 'width' ? inner : inner * aspect;
+    const height = changed === 'height' ? inner : inner / aspect;
+    const capacity = 12000000 - padding * padding;
+    if ((padding + 2) ** 2 > 12000000) throw new Error('This margin is too large for the 12 megapixel export limit.');
+    // Scale the boundary to fit export limits while keeping the pixel margin fixed.
+    const areaFactor = 2 * capacity / (padding * (width + height) + Math.sqrt(padding * padding * (width + height) ** 2 + 4 * width * height * capacity));
+    const factor = Math.min(1, (4096 - padding) / width, (4096 - padding) / height, areaFactor);
+    const size = { width: Math.max(padding + 1, Math.round(width * factor + padding)), height: Math.max(padding + 1, Math.round(height * factor + padding)) };
+    while (size.width * size.height > 12000000) {
+        if (size.width >= size.height) size.width--; else size.height--;
+    }
+    return size;
 }

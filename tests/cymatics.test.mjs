@@ -182,6 +182,12 @@ test('crop bounds and visibility account for camera rotation and pan', () => {
     near(cropped.yHeight, 2); near(cropped.xCenter, 0); near(cropped.yCenter, 0);
     assert.equal(boundary_view_bounds({ ...cfg, boundary: 'Binary Split' }), null);
     assert.equal(boundary_fully_visible({ ...cfg, boundary: 'None' }, 900, 600), false);
+    const padded = crop_view_config(cfg, bounds, 840, 240, 20), scale = 240 / padded.yHeight;
+    near((840 - bounds.width * scale) / 2, 20);
+    near((240 - bounds.height * scale) / 2, 20);
+    near(padded.xCenter, cropped.xCenter); near(padded.yCenter, cropped.yCenter);
+    assert.deepEqual(crop_view_config(cfg, bounds, 800, 200, 0), cropped);
+    for (const margin of [-1, .5, 100, 5000]) assert.throws(() => crop_view_config(cfg, bounds, 800, 200, margin));
 });
 
 test('linked crop dimensions preserve aspect from either input', () => {
@@ -189,6 +195,12 @@ test('linked crop dimensions preserve aspect from either input', () => {
     assert.deepEqual(linked_dimensions(300, 4, 'height'), { width: 1200, height: 300 });
     const large = linked_dimensions(8000, 4);
     assert.equal(large.width, 4096); assert.equal(large.height, 1024);
+    assert.deepEqual(linked_dimensions(800, 4, 'width', 20), { width: 800, height: 230 });
+    assert.deepEqual(linked_dimensions(240, 4, 'height', 20), { width: 840, height: 240 });
+    assert.deepEqual(linked_dimensions(8000, 4, 'width', 20), { width: 4096, height: 1054 });
+    const paddedLimit = linked_dimensions(8000, 1, 'width', 100);
+    assert.ok(paddedLimit.width <= 4096 && paddedLimit.height <= 4096 && paddedLimit.width * paddedLimit.height <= 12000000);
+    for (const margin of [-1, .5, 100, 1732, 2047]) assert.throws(() => linked_dimensions(200, 4, 'height', margin));
 });
 
 

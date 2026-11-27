@@ -343,31 +343,75 @@ const actions = {
     open() { $('openFileInput').value = ''; $('openError').textContent = ''; open_dialog('openModal'); },
     help() { open_dialog('helpModal'); }
 };
-function set_save_dimensions() {
-    if ($('cropBoundary').checked && saveCropBounds) {
-        const pixels = canvas.height / config.get().yHeight;
-        const size = linked_dimensions(Math.max(1, Math.round(saveCropBounds.width * pixels)), saveCropBounds.width / saveCropBounds.height);
-        $('saveWidth').value = size.width; $('saveHeight').value = size.height;
-    } else {
-        $('saveWidth').value = Math.min(4096, Math.max(1, canvas.width)); $('saveHeight').value = Math.min(4096, Math.max(1, canvas.height));
+function crop_margin() {
+    if (!$('cropBoundary').checked || !saveCropBounds) return 0;
+    const value = Number($('cropMargin').value);
+    if ($('cropMargin').value === '' || !Number.isInteger(value) || value < 0 || value > 2047) throw new Error('Enter a whole-pixel margin from 0 to 2047.');
+    return value;
+}
+
+function sync_crop_margin() {
+    const active = $('cropBoundary').checked && !!saveCropBounds;
+    $('cropMarginOptions').hidden = !active;
+    $('cropMargin').disabled = !active || saveBusy;
+    $('cropMarginHint').textContent = $('saveType').value === 'video' ? 'Background pixels on each side, included in the video width and height.' : 'Transparent pixels on each side, included in the image width and height.';
+}
+
+function validate_crop_margin() {
+    $('cropMargin').setCustomValidity('');
+    $('cropMarginError').hidden = true;
+    if (!$('cropBoundary').checked || !saveCropBounds) return true;
+    try {
+        crop_view_config(config.get(), saveCropBounds, Number($('saveWidth').value), Number($('saveHeight').value), crop_margin());
+        return true;
+    } catch (error) {
+        $('cropMarginError').textContent = error.message; $('cropMarginError').hidden = false;
+        $('cropMargin').setCustomValidity(error.message);
+        return false;
     }
 }
-$('cropBoundary').addEventListener('change', () => { set_save_dimensions(); if ($('saveType').value === 'video') apply_video_resolution(); });
+
+function set_export_size(size, even = true) {
+    if (even && $('saveType').value === 'video') size = even_video_dimensions(size.width, size.height);
+    $('saveWidth').value = size.width; $('saveHeight').value = size.height;
+}
+
+function set_save_dimensions() {
+    try {
+        if ($('cropBoundary').checked && saveCropBounds) {
+            const pixels = canvas.height / config.get().yHeight, margin = crop_margin();
+            set_export_size(linked_dimensions(Math.max(1, Math.round(saveCropBounds.width * pixels)) + 2 * margin, saveCropBounds.width / saveCropBounds.height, 'width', margin));
+        } else {
+            set_export_size({ width: Math.min(4096, Math.max(1, canvas.width)), height: Math.min(4096, Math.max(1, canvas.height)) });
+        }
+    } catch (error) { $('saveError').textContent = error.message; }
+}
+$('cropBoundary').addEventListener('change', () => {
+    $('saveError').textContent = ''; sync_crop_margin(); set_save_dimensions();
+    if ($('saveType').value === 'video') apply_video_resolution(); else update_save_summary();
+});
+$('cropMargin').addEventListener('input', () => {
+    $('saveError').textContent = '';
+    try {
+        if ($('saveType').value === 'image' || $('videoResolution').value === 'custom') set_export_size(linked_dimensions(Number($('saveHeight').value), saveCropBounds.width / saveCropBounds.height, 'height', crop_margin()));
+        else { apply_video_resolution(); return; }
+    } catch {} // The summary explains invalid margin/size combinations and disables export.
+    update_save_summary();
+});
 for (const [id, dimension] of [['saveWidth', 'width'], ['saveHeight', 'height']]) {
     $(id).addEventListener('input', () => {
+        $('saveError').textContent = '';
         const value = Number($(id).value);
         if ($('cropBoundary').checked && saveCropBounds && Number.isFinite(value) && value > 0) {
-            const size = linked_dimensions(value, saveCropBounds.width / saveCropBounds.height, dimension);
-            $('saveWidth').value = size.width; $('saveHeight').value = size.height;
+            try { set_export_size(linked_dimensions(value, saveCropBounds.width / saveCropBounds.height, dimension, crop_margin()), false); } catch {}
         }
         if ($('saveType').value === 'video') $('videoResolution').value = 'custom';
-        update_video_summary();
+        update_save_summary();
     });
     $(id).addEventListener('change', () => {
         if ($('saveType').value !== 'video') return;
-        const size = even_video_dimensions(Number($('saveWidth').value), Number($('saveHeight').value));
-        $('saveWidth').value = size.width; $('saveHeight').value = size.height;
-        update_video_summary();
+        set_export_size(even_video_dimensions(Number($('saveWidth').value), Number($('saveHeight').value)));
+        update_save_summary();
     });
 }
 
@@ -376,13 +420,20 @@ function video_supported() {
 }
 
 function selected_video_plan() {
-    return video_plan(config.get(), { width: Number($('saveWidth').value), height: Number($('saveHeight').value), fps: Number($('videoFps').value), cycles: Number($('videoCycles').value) });
+    const plan = video_plan(config.get(), { width: Number($('saveWidth').value), height: Number($('saveHeight').value), fps: Number($('videoFps').value), cycles: Number($('videoCycles').value) });
+    if ($('cropBoundary').checked && saveCropBounds) crop_view_config(config.get(), saveCropBounds, plan.width, plan.height, crop_margin());
+    return plan;
 }
 
-async function update_video_summary() {
+async function update_save_summary() {
     const request = ++videoSummaryRequest;
-    if ($('saveType').value !== 'video') return;
+    const cropValid = validate_crop_margin();
+    if ($('saveType').value !== 'video') {
+        $('saveImageButton').disabled = saveBusy || !cropValid;
+        return;
+    }
     $('saveImageButton').disabled = true;
+    if (!cropValid) { $('videoSummary').textContent = $('cropMarginError').textContent; return; }
     if (!video_supported()) {
         $('videoSummary').textContent = 'Video export is unavailable in this browser. Image and JSON saving are still available.';
         return;
@@ -402,22 +453,25 @@ async function update_video_summary() {
 }
 
 function apply_video_resolution() {
-    const selected = $('videoResolution').value;
-    if (selected !== 'custom') {
-        const aspect = $('cropBoundary').checked && saveCropBounds ? saveCropBounds.width / saveCropBounds.height : canvas.width / canvas.height;
-        const size = linked_dimensions(Number(selected), aspect, 'height');
-        const even = even_video_dimensions(size.width, size.height);
-        $('saveWidth').value = even.width; $('saveHeight').value = even.height;
-    } else {
-        const even = even_video_dimensions(Number($('saveWidth').value), Number($('saveHeight').value));
-        $('saveWidth').value = even.width; $('saveHeight').value = even.height;
+    try {
+        const selected = $('videoResolution').value;
+        if (selected !== 'custom') {
+            const cropped = $('cropBoundary').checked && saveCropBounds;
+            const aspect = cropped ? saveCropBounds.width / saveCropBounds.height : canvas.width / canvas.height;
+            set_export_size(linked_dimensions(Number(selected), aspect, 'height', crop_margin()));
+        } else {
+            set_export_size(even_video_dimensions(Number($('saveWidth').value), Number($('saveHeight').value)));
+        }
+        update_save_summary();
+    } catch (error) {
+        ++videoSummaryRequest; $('videoSummary').textContent = error.message; $('saveImageButton').disabled = true;
     }
-    update_video_summary();
 }
 
 function sync_save_mode(resetDimensions = false) {
     const video = $('saveType').value === 'video', format = supported_video_formats()[0];
     $('videoOptions').hidden = !video;
+    sync_crop_margin();
     $('videoFps').disabled = !video || saveBusy; $('videoCycles').disabled = !video || saveBusy;
     $('saveJsonButton').hidden = video;
     $('saveDescription').textContent = video ? 'Save an animation of complete phase cycles using the current resonators, boundary, colors, and view.' : 'Save a PNG with the complete configuration embedded. Open the image later to restore this pattern.';
@@ -427,12 +481,12 @@ function sync_save_mode(resetDimensions = false) {
     $('saveFilename').value = video_filename($('saveFilename').value, video ? (format?.extension || 'webm') : 'png');
     for (const id of ['saveWidth', 'saveHeight']) { $(id).min = video ? '2' : '1'; $(id).step = video ? '2' : '1'; }
     if (resetDimensions) { set_save_dimensions(); if (video) apply_video_resolution(); }
-    update_video_summary();
+    update_save_summary();
 }
 
 function set_save_busy(busy, video) {
     saveBusy = busy; $('saveForm').setAttribute('aria-busy', String(busy));
-    for (const id of ['saveType', 'videoResolution', 'videoFps', 'videoCycles', 'saveWidth', 'saveHeight', 'saveFilename', 'cropBoundary', 'saveJsonButton']) $(id).disabled = busy;
+    for (const id of ['saveType', 'videoResolution', 'videoFps', 'videoCycles', 'saveWidth', 'saveHeight', 'saveFilename', 'cropBoundary', 'cropMargin', 'saveJsonButton']) $(id).disabled = busy;
     $('videoProgress').hidden = !busy || !video;
     if (busy && video) { $('videoProgressBar').value = 0; $('videoProgressText').textContent = 'Starting video encoder…'; }
     sync_save_mode(false);
@@ -440,7 +494,7 @@ function set_save_busy(busy, video) {
 
 $('saveType').addEventListener('change', () => { $('saveError').textContent = ''; sync_save_mode(true); });
 $('videoResolution').addEventListener('change', apply_video_resolution);
-for (const id of ['videoFps', 'videoCycles']) $(id).addEventListener('input', update_video_summary);
+for (const id of ['videoFps', 'videoCycles']) $(id).addEventListener('input', update_save_summary);
 $('cancelVideoButton').addEventListener('click', () => videoController?.abort());
 $('saveModal').addEventListener('close', () => videoController?.abort());
 
@@ -471,7 +525,7 @@ $('saveForm').addEventListener('submit', async event => {
         exportRenderer = create_renderer(saveCanvas, { transparentOutside: !video && !!crop });
         let cfg = structuredClone(config.get());
         const exportScene = scene;
-        if (crop) cfg = crop_view_config(cfg, saveCropBounds, width, height);
+        if (crop) cfg = crop_view_config(cfg, saveCropBounds, width, height, crop_margin());
         if (video) {
             videoController = new AbortController();
             $('videoPreview').replaceChildren(saveCanvas);
